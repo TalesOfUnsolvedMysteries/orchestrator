@@ -1,5 +1,6 @@
 const thetaConnector = require('./thetaConnector');
-const { USER_STATE } = require('./userManager');
+const userManager = require('./userManager');
+const { USER_STATE } = userManager;
 // should guarantee the state of the line
 
 // sequence or user ids
@@ -17,8 +18,15 @@ const syncLine = async () => {
 
 // remove the first user from the line
 const peek = async () => {
-  await thetaConnector.peek();
+  let userID = -1;
+  if (line.length == 0) return userID;
+  try {
+    userID = await thetaConnector.peek();
+  } catch (e) {
+    console.error(e);
+  }
   await syncLine();
+  return userID;
 };
 
 
@@ -36,10 +44,28 @@ const requestTurnFor = async (user) => {
   }
 };
 
+const getFirstInLine = () => {
+  const [ firstID ] = line;
+  if (!firstID) return null;
+  const firstUser = userManager.getUserByUserID(firstID);
+  // should check if the user is online if not should be kicked.
+  return firstUser;
+};
+
+const getNextPlayer = () => {
+  const [,nextID] = line;
+  if (!nextID) return null;
+  const nextUser = userManager.getUserByUserID(nextID);
+  // should check if the user is online if not, send a notification?
+  return nextUser;
+}
+
 
 module.exports = {
   syncLine,
   peek,
-  requestTurnFor
+  requestTurnFor,
+  getFirstInLine,
+  getNextPlayer
 }
 

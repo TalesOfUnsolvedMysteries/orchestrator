@@ -6,7 +6,7 @@ let listeners = {};
 const networkConfig = {
   local_hardhat: {
     url: 'http://127.0.0.1:8545/',
-    contractAddress: '0x0165878A594ca255338adfa4d48449f69242Eb8F',
+    contractAddress: '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853',
   },
   theta_privatenet: {
     url: 'http://127.0.0.1:18888/rpc',
@@ -45,7 +45,7 @@ const init = async () => {
   _contract.on('linePeeked', (userID) => {
     console.log('first user removed from line event', userID);
     if (listeners['linePeeked'] && listeners['linePeeked']['_']) {
-      listeners['turnAssigned']['_'](userID);
+      listeners['linePeeked']['_'](userID);
     }
   });
   _contract.on('tokenRewarded', (userID, tokenId) => {

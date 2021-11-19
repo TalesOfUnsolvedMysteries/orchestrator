@@ -2,6 +2,7 @@ const thetaConnector = require('./thetaConnector');
 
 const users = {};
 const userIDs = {};
+const userGodotPeerIDs = {};
 
 
 const USER_STATE = {
@@ -48,10 +49,16 @@ const _createUser = (_sessionID) => {
     state = USER_STATE.INLINE;
   };
 
+  const setGodotPeer = (_godotPeerID) => {
+    godotPeerID = _godotPeerID;
+    userGodotPeerIDs[godotPeerID] = sessionID;
+  };
+
   return {
     ackConnection,
     allocateOnBlockchain,
     assignTurn,
+    setGodotPeer,
     getSessionID: _ => sessionID,
     getUserID: _ => userID,
     getGodotPeerID: _ => godotPeerID,
@@ -79,6 +86,7 @@ const deleteUser = (sessionID) => {
 };
 const getUser = (sessionID) => users[sessionID];
 const getUserByUserID = (userID) => getUser(userIDs[userID]);
+const getUserByGodotPeerID = (godotPeerID) => getUser(userGodotPeerIDs[godotPeerID]);
 const registerUser = (sessionID) => {
   if (users[sessionID]) return; // already registered
   const user = _createUser(sessionID);
@@ -121,6 +129,7 @@ module.exports = {
   init,
   getUser,
   getUserByUserID,
+  getUserByGodotPeerID,
   deleteUser,
   registerUser,
   isPlayerConnected,
