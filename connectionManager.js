@@ -107,8 +107,11 @@ const messageParser = async (clientSocket, message) => {
       clientSocket.send(`replyTurn:${ turn }`);
     break;
     case 'registerGameServer':
-      if (data === 'secretWord') {
+      console.log('register game server');
+      if (data === process.env.SECRET_GAME_KEY) {
         gameManager.registerServer(clientSocket);
+      } else {
+        console.log(`bad secret key ${ data }`);
       }
     break;
     default:

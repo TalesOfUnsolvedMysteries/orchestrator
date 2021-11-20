@@ -17,6 +17,7 @@ let gameServerSocket;
 let currentPlayer;
 let nextPlayer;
 let previousPlayer;
+const pendingConnections = {};
 
 // ask next player to connect
 const preparePlayer = () => {
@@ -32,7 +33,14 @@ const startGame = () => {
 };
 
 // stop active player to control the game server
-const endGame = () => {
+const endGame = async (peerID) => {
+  console.log(`that was an end game for ${ peerID }`);
+  // remove previous user...
+  const _userID = await lineManager.peek();
+  console.log(`${ _userID } removed from the line.`);
+  // connect the next one in 5 seconds
+  console.log('next player in 5 seconds');
+  setTimeout(start, 5000);
 };
 
 // 
@@ -54,7 +62,7 @@ const start = async () => {
   
   requestClientConnection(first);
 }
-const pendingConnections = {};
+
 
 
 const requestClientConnection = (user) => {
@@ -113,7 +121,12 @@ const handleCommand = async (command, data) => {
         delete pendingConnection[secret];
         console.log('user connected!');
         console.log(user.asObject());
+        gameServerSocket.send(`gs_assignPilot:${godotPeerID}`);
       }
+    }
+    break;
+    case 'gs_pilot_disconnected': {
+      endGame(data);
     }
     break;
   }
