@@ -12,7 +12,7 @@
     "commander": "^8.3.0",
     "dotenv": "^10.0.0",
     "ethers": "^5.5.1",
-    "exchain-ethers": "^5.5.2",
+    "request": "^2.88.2",
     "uuid": "^8.3.2",
     "ws": "^8.2.3"
   }
