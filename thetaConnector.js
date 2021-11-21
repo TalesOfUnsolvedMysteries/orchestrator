@@ -1,4 +1,5 @@
-const { ethers, Contract, Wallet } = require('ethers');
+const { ethers, Contract, Wallet, logger } = require('ethers');
+const log = require('./log');
 const bugShowArtifact = require('./artifacts/bugShow.json');
 
 let _contract;
@@ -26,36 +27,37 @@ const networkConfig = {
 };
 
 const init = async () => {
+  log.info(`[TC] Theta Connector - initialization`);
   const { url, contractAddress } = networkConfig[process.env.NETWORK];
   const provider = new ethers.providers.JsonRpcProvider(url);
   const wallet = new Wallet(process.env.PRIVATE_KEY, provider);
   _contract = new Contract(contractAddress, bugShowArtifact.abi, wallet);
   _contract.on('userAllocated', (sessionID, userID) => {
-    console.log('user allocated event', sessionID, userID);
+    log.info(`[TC] Blockchain userAllocated event: ${ sessionID } ${ userID }`);
     if (listeners['userAllocated'] && listeners['userAllocated'][sessionID]) {
       listeners['userAllocated'][sessionID](userID);
     }
   });
   _contract.on('turnAssigned', (userID, turn) => {
-    console.log('turn assigned to user event', userID, turn);
+    log.info(`[TC] Blockchain turnAssigned event: ${ userID } ${ turn }`);
     if (listeners['turnAssigned'] && listeners['turnAssigned'][userID]) {
       listeners['turnAssigned'][userID](turn);
     }
   });
   _contract.on('linePeeked', (userID) => {
-    console.log('first user removed from line event', userID);
+    log.info(`[TC] Blockchain linePeeked event: ${ userID }`);
     if (listeners['linePeeked'] && listeners['linePeeked']['_']) {
       listeners['linePeeked']['_'](userID);
     }
   });
   _contract.on('tokenRewarded', (userID, tokenId) => {
-    console.log('token rewarded to player', userID, tokenId);
+    log.info(`[TC] Blockchain tokenRewarded event: ${ userID } ${ tokenId }`);
     if (listeners['tokenRewarded'] && listeners['tokenRewarded'][userID]) {
       listeners['tokenRewarded'][userID](tokenId);
     }
   });
   _contract.on('pointsRewarded', (userID, points) => {
-    console.log('points rewarded to player -> total:', userID, points);
+    log.info(`[TC] Blockchain pointsRewarded event: ${ userID } ${ points }`);
     if (listeners['pointsRewarded'] && listeners['pointsRewarded'][userID]) {
       listeners['pointsRewarded'][userID](points);
     }

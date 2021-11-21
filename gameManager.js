@@ -1,6 +1,10 @@
 const { v4: uuidv4 } = require('uuid');
-const userManager = require('./userManager');
+const log = require('./log');
+
 const lineManager = require('./lineManager');
+const userManager = require('./userManager');
+const { logger } = require('./log');
+
 let connectionManager;
 
 const GAME_STATE = {
@@ -19,47 +23,32 @@ let nextPlayer;
 let previousPlayer;
 const pendingConnections = {};
 
-// ask next player to connect
-const preparePlayer = () => {
-};
-
-// move the line forward
-const setActivePlayer = () => {
-};
-
 // allow active player to control the game server
-const startGame = () => {
-
-};
+// game transition from lobby to playing
 
 // stop active player to control the game server
+// game transition from playing to ready
 const endGame = async (peerID) => {
-  console.log(`that was an end game for ${ peerID }`);
-  // remove previous user...
   const _userID = await lineManager.peek();
-  console.log(`${ _userID } removed from the line.`);
-  // connect the next one in 5 seconds
-  console.log('next player in 5 seconds');
-  setTimeout(start, 5000);
 };
 
 // 
 const start = async () => {
   if (state !== GAME_STATE.READY) {
-    console.log('game can not start');
+    log.warn(`[GM] game can't start = STATE=${ state }`);
     return false;
   }
   const first = lineManager.getFirstInLine();
   if (!first) {
-    console.log('there are no players ready to play');
+    log.warn('[GM] there are no players ready to play');
     // check the line length...
     const _userID = await lineManager.peek();
-    console.log(`${ _userID } removed from the line.`);
-    setTimeout(start, 20000);
+    log.warn(`[GM] ${ _userID } removed from the line.`);
+    //setTimeout(start, 20000);
     return;
   }
-  console.log(first.asObject());
-  
+
+  log.warn(`[GM] user_id: ${ first.getUserID() } is the first in line.`);
   requestClientConnection(first);
 }
 
@@ -73,11 +62,9 @@ const requestClientConnection = (user) => {
   setTimeout(() => delete pendingConnections[secretKey], 10000);
 }
 
-const checkLine = () => {
-  
-};
 
 const init = (_connectionManager) => {
+  log.info(`[GM] Game Manager - initialization`);
   state = GAME_STATE.OFFLINE;
   connectionManager = _connectionManager;
 }
@@ -92,35 +79,34 @@ const registerServer = (websocketClient) => {
 const handleCommand = async (command, data) => {
   switch(command) {
     case 'gs_ready':
-      console.log('server is ready');
       state = GAME_STATE.READY;
+      log.info('[GM] Game Server is ready');
       setTimeout(start, 5000);
     break;
     case 'gs_waitingConnection': {
       const { sessionID } = pendingConnections[data];
       connectionManager.sendMessageTo(sessionID, `gc_connect:${ data }`);
-      setTimeout(()=>console.log('timeout'), 10000);
+      setTimeout(()=>logger.warn('[GM] Connection timeout for game server'), 10000);
     }
     break;
     case 'gs_connectionFail': {
       // handle failed connection
       const { sessionID } = pendingConnections[data];
-      console.log('connection fails :(');
+      log.warn(`[GM] Game Server Connection fails for ${ sessionID }`);
     }
     break;
     case 'gs_connectionSuccess': {
-      console.log('gs connection success', data);
       const [secret, godotPeerID] = data.split('-');
+      log.info(`[GM] client=${ godotPeerID } connection success`);
       const pendingConnection = pendingConnections[secret];
       if (!pendingConnection) {
-        console.log('is this connection valid?');
+        log.warn(`[GM] client=${ godotPeerID } connection not found in pending connections. should remove it?`);
       } else {
         const { sessionID } = pendingConnection;
         const user = userManager.getUser(sessionID);
         user.setGodotPeer(godotPeerID);
         delete pendingConnection[secret];
-        console.log('user connected!');
-        console.log(user.asObject());
+        log.info(`[GM] client=${ godotPeerID } associated to userID=${ user.getUserID() }`);
         gameServerSocket.send(`gs_assignPilot:${godotPeerID}`);
       }
     }

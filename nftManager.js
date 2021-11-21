@@ -1,6 +1,8 @@
 require('dotenv').config();
 const fs = require('fs');
 const { NFTStorage, File } = require('nft.storage');
+const log = require('./log');
+
 const client = new NFTStorage({ token: process.env.NFT_STORAGE_KEY });
 
 const test = async () => {
@@ -21,8 +23,8 @@ const test = async () => {
       name: 'mono'
     }
   })
-  console.log(metadata.ipnft);
-  console.log(metadata.embed());
+  log.info(metadata.ipnft);
+  log.info(metadata.embed());
 
 }
 

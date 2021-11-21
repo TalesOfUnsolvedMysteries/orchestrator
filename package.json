@@ -16,6 +16,7 @@
     "nft.storage": "^4.0.1",
     "obs-websocket-js": "^4.0.3",
     "request": "^2.88.2",
+    "simple-node-logger": "^21.8.12",
     "uuid": "^8.3.2",
     "ws": "^8.2.3"
   }

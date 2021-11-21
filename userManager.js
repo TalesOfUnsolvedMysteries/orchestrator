@@ -1,4 +1,5 @@
-const thetaConnector = require('./thetaConnector');
+const { allocateUser } = require('./thetaConnector');
+const log = require('./log');
 
 const users = {};
 const userIDs = {};
@@ -14,7 +15,9 @@ const USER_STATE = {
   DISCONNECTED: 5,
 };
 
-const init = () => {}
+const init = () => {
+  log.info(`[UM] User Manager - initialization`);
+}
 
 const _createUser = (_sessionID) => {
   let sessionID = _sessionID;
@@ -35,13 +38,13 @@ const _createUser = (_sessionID) => {
 
   const allocateOnBlockchain = async (secretWord) => {
     if (userID !== sessionID) return;
-    const reply = await thetaConnector.allocateUser(sessionID, secretWord);
+    const reply = await allocateUser(sessionID, secretWord);
     delete userIDs[userID];
     userID = reply.userID;
     userIDs[userID] = sessionID;
     encodedKey = reply.encodedKey;
-    console.log('userID allocated to', userID);
-    console.log('protected by', encodedKey);
+    log.info(`[UM] userID allocated to ${ userID }`);
+    log.info(`[UM] protected by ${ encodedKey }`);
   }
 
   const assignTurn = async (_turn) => {

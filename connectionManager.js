@@ -1,9 +1,10 @@
 const { WebSocketServer } = require('ws');
 const { v4: uuidv4 } = require('uuid');
+const log = require('./log');
 
-const userManager = require('./userManager');
-const lineManager = require('./lineManager');
 const gameManager = require('./gameManager');
+const lineManager = require('./lineManager');
+const userManager = require('./userManager');
 
 const DEBUG_ALLOWS_MULTIPLE_IPS = true;
 
@@ -12,15 +13,18 @@ const connectedIps = {};
 const connectedClients = {};
 
 const init = () => {
-  wss = new WebSocketServer({port: 8080});
+  log.info(`[WS] Connection Manager - initialization`);
+  log.info('[WS] initializating websocket server at 8080');
+  wss = new WebSocketServer({ port: 8080 });
   wss.on('connection', (clientSocket, req) => {
     const ip = req.socket.remoteAddress;
+    log.info(`[WS] incomming connection from ${ ip }`);
     onConnectionAttemp(clientSocket, ip);
   });
   setInterval(() => {
     wss.clients.forEach(ws => {
       if (ws.isAlive === false) {
-        console.log(`player ${ ws.sessionID } disconnected`);
+        log.info(`[WS] player connection: ${ ws.sessionID } lost.`);
         return kickPlayer(ws.sessionID);
       }
       ws.isAlive = false;
@@ -39,7 +43,7 @@ const onConnectionAttemp = (clientSocket, ip) => {
     // user already connected
     // reject or destroy the other communication?
     // easier to reject at this moment.
-    console.log('player already connected');
+    log.info(`[WS] player from ${ ip } is already connected`);
     kickPlayer(sessionID, false);
     return;
   }
@@ -48,14 +52,14 @@ const onConnectionAttemp = (clientSocket, ip) => {
   clientSocket.send(`connecting:${ sessionID }`);
   setTimeout(() => {
     if (userManager.isPlayerConnected(sessionID)) return;
-    console.log(`timeout expiration for ${ sessionID }`);
+    log.info(`[WS] connection timeout for ${ ip }: ${ sessionID }`);
     kickPlayer(sessionID);
   }, 5000);
 
   clientSocket.isAlive = true;
   clientSocket.on('message', (message) => messageParser(clientSocket, message));
   clientSocket.on('close', () => {
-    console.log(`user ${ sessionID } disconnected`);
+    log.info(`[WS] ${ip }: ${ sessionID } closed`);
     kickPlayer(sessionID);
   });
 };
@@ -81,6 +85,7 @@ const messageParser = async (clientSocket, message) => {
   message = `${message}`;
   const [command, data] = message.split(':');
   const user = userManager.getUser(clientSocket.sessionID);
+  const connectionID = `${ clientSocket.ip }: ${ clientSocket.sessionID }`;
   // console.log(`${clientSocket.sessionID} sends: ${ message }`);
   if (clientSocket.isGameServer && command.indexOf('gs_') === 0) {
     gameManager.handleCommand(command, data);
@@ -97,26 +102,25 @@ const messageParser = async (clientSocket, message) => {
     break;
     case 'allocateUser':
       await user.allocateOnBlockchain(data); // data is the secret word
-      console.log(user.getUserID());
+      log.info(`[WS] connection: ${ connectionID } had allocated the userID: ${ user.getUserID() }`);
       clientSocket.send(`userAssigned:${ user.getUserID() }`);
     break;
     case 'requestTurn':
       await lineManager.requestTurnFor(user);
       const turn = user.getTurn();
-      if (!turn) console.log('rejected');
+      if (!turn) log.warn(`[WS] connection: ${ connectionID } turn request was rejected`);
       clientSocket.send(`replyTurn:${ turn }`);
     break;
     case 'registerGameServer':
-      console.log('register game server');
+      log.info(`[WS] incoming game server registry. ${ connectionID }`);
       if (data === process.env.SECRET_GAME_KEY) {
         gameManager.registerServer(clientSocket);
       } else {
-        console.log(`bad secret key ${ data }`);
+        console.warn(`[WS] ${ connectionID } sent an incorrect secret-key ${ data }`);
       }
     break;
     default:
-      console.log('received an invalid message');
-      console.log(message);
+      log.warn(`[WS] ${ connectionID} send an invalid message: ${ message }`);
   }
 };
 

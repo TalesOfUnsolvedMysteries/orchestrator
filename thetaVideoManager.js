@@ -1,6 +1,7 @@
 require('dotenv').config();
 const request = require('request');
 const fs = require('fs');
+const log = require('./log');
 
 const presignOptions = {
   'method': 'POST',
@@ -26,7 +27,7 @@ const getOptionsToUpload = (presigned_url, file) => {
 const uploadVideo = async (file, videoTitle, retries=0) => {
   if (!fs.existsSync(file)) {
     if (retries>5) throw new Error('file does not exist');
-    console.log(`file ${ file } does not exist, wait 1 second, ${retries + 1} retry`);
+    log.info(`[VM] file ${ file } does not exist, wait 1 second, ${retries + 1} retry`);
     await new Promise(resolve => setTimeout(resolve, 1000));
     return await uploadVideo(file, videoTitle, ++retries);
   }
@@ -35,28 +36,28 @@ const uploadVideo = async (file, videoTitle, retries=0) => {
     request(presignOptions, (error, response) => {
       if (error) return reject(error);
       const res = JSON.parse(response.body);
-      console.log(res);
+      log.info(res);
       resolve(res.body.uploads[0]);
     });
   });
-  console.log(video);
+  log.info(video);
   const { presigned_url } = video;
-  console.log(presigned_url);
+  log.info(presigned_url);
   const uploadOptions = getOptionsToUpload(presigned_url);
   await new Promise((resolve, reject) => {
     const r = request(uploadOptions);
-    console.log(r);
+    log.info(r);
     var upload = fs.createReadStream(file);
     upload.pipe(r);
     
     var upload_progress = 0;
     upload.on("data", function (chunk) {
       upload_progress += chunk.length
-      console.log(new Date(), upload_progress);
+      log.info(new Date(), upload_progress);
     })
     
     upload.on("end", function (res) {
-      console.log('Finished');
+      log.info('Finished');
       resolve();
     });
   });
@@ -75,7 +76,7 @@ const uploadVideo = async (file, videoTitle, retries=0) => {
   request(options, (error, response) => {
     if (error) throw new Error(error);
     const res = JSON.parse(response.body);
-    console.log(res.body.videos[0]);
+    log.info(res.body.videos[0]);
   });
   
 };
