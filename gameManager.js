@@ -6,6 +6,7 @@ const userManager = require('./userManager');
 const { logger } = require('./log');
 
 let connectionManager;
+let stateChangeListener;
 
 const GAME_STATE = {
   OFFLINE: 0,
@@ -53,7 +54,6 @@ const start = async () => {
 }
 
 
-
 const requestClientConnection = (user) => {
   const secretKey = uuidv4().replace(/\-/g, ''); // generate it
   pendingConnections[secretKey] = user.asObject();
@@ -62,26 +62,35 @@ const requestClientConnection = (user) => {
   setTimeout(() => delete pendingConnections[secretKey], 10000);
 }
 
-
-const init = (_connectionManager) => {
+const init = (_connectionManager, _stateChangeListener) => {
   log.info(`[GM] Game Manager - initialization`);
-  state = GAME_STATE.OFFLINE;
+  setState(GAME_STATE.OFFLINE);
   connectionManager = _connectionManager;
+  stateChangeListener = _stateChangeListener;
 }
 
 const registerServer = (websocketClient) => {
   gameServerSocket = websocketClient;
   gameServerSocket.isGameServer = true;
-  state = GAME_STATE.CONNECTING;
+  setState(GAME_STATE.CONNECTING);
   gameServerSocket.send('gs_connected:1');
+  gameServerSocket.on('close', () => {
+    setState(GAME_STATE.OFFLINE);
+  });
+}
+
+const setState = (newState) => {
+  state = newState;
+  if (stateChangeListener && (newState==GAME_STATE.READY || newState==GAME_STATE.OFFLINE)) {
+    stateChangeListener();
+  }
 }
 
 const handleCommand = async (command, data) => {
   switch(command) {
     case 'gs_ready':
-      state = GAME_STATE.READY;
       log.info('[GM] Game Server is ready');
-      setTimeout(start, 5000);
+      setState(GAME_STATE.READY);
     break;
     case 'gs_waitingConnection': {
       const { sessionID } = pendingConnections[data];
@@ -122,5 +131,6 @@ const handleCommand = async (command, data) => {
 module.exports = {
   init,
   registerServer,
-  handleCommand
+  handleCommand,
+  getState: () => state
 };

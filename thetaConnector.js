@@ -4,6 +4,8 @@ const bugShowArtifact = require('./artifacts/bugShow.json');
 
 let _contract;
 let listeners = {};
+let connected = false;
+
 const networkConfig = {
   local_hardhat: {
     url: 'http://127.0.0.1:8545/',
@@ -28,6 +30,16 @@ const networkConfig = {
 
 const init = async () => {
   log.info(`[TC] Theta Connector - initialization`);
+  try {
+    await connect();
+    connected = true;
+  } catch(e) {
+    log.error('[TC] error on connection');
+    log.error(e);
+  }
+};
+
+const connect = async () => {
   const { url, contractAddress } = networkConfig[process.env.NETWORK];
   const provider = new ethers.providers.JsonRpcProvider(url);
   const wallet = new Wallet(process.env.PRIVATE_KEY, provider);
@@ -138,6 +150,7 @@ const rewardPoints = async (userID, points) => {
 
 module.exports = {
   init,
+  isConnected: () => connected,
   getContract,
   allocateUser,
   addToLine,

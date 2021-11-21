@@ -9,11 +9,17 @@ const userManager = require('./userManager');
 const DEBUG_ALLOWS_MULTIPLE_IPS = true;
 
 let wss;
+let heartbeat;
+let started = false;
 const connectedIps = {};
 const connectedClients = {};
 
 const init = () => {
   log.info(`[WS] Connection Manager - initialization`);
+  startServer();
+};
+
+const startServer = () => {
   log.info('[WS] initializating websocket server at 8080');
   wss = new WebSocketServer({ port: 8080 });
   wss.on('connection', (clientSocket, req) => {
@@ -21,7 +27,7 @@ const init = () => {
     log.info(`[WS] incomming connection from ${ ip }`);
     onConnectionAttemp(clientSocket, ip);
   });
-  setInterval(() => {
+  heartbeat = setInterval(() => {
     wss.clients.forEach(ws => {
       if (ws.isAlive === false) {
         log.info(`[WS] player connection: ${ ws.sessionID } lost.`);
@@ -31,6 +37,7 @@ const init = () => {
       ws.send('ping:0');
     });
   }, 10000);
+  started = true;
 };
 
 const onConnectionAttemp = (clientSocket, ip) => {
@@ -127,4 +134,5 @@ const messageParser = async (clientSocket, message) => {
 module.exports = {
   init,
   sendMessageTo,
+  isStarted: () => started
 }
