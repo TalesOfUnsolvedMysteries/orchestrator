@@ -23,7 +23,14 @@ const getOptionsToUpload = (presigned_url, file) => {
 };
 
 
-const uploadVideo = async (file, videoTitle) => {
+const uploadVideo = async (file, videoTitle, retries=0) => {
+  if (!fs.existsSync(file)) {
+    if (retries>5) throw new Error('file does not exist');
+    console.log(`file ${ file } does not exist, wait 1 second, ${retries + 1} retry`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    return await uploadVideo(file, videoTitle, ++retries);
+  }
+  
   const video = await new Promise((resolve, reject) => {
     request(presignOptions, (error, response) => {
       if (error) return reject(error);
@@ -73,5 +80,7 @@ const uploadVideo = async (file, videoTitle) => {
   
 };
 
-uploadVideo('/mnt/d/user/videos/2021-11-10 10-14-15.mkv', 'videoName');
+module.exports = {
+  uploadVideo
+};
 
