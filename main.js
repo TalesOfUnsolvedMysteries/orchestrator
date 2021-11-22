@@ -16,18 +16,43 @@ const SERVER_STATE = {
   NOT_READY: 2,
   READY: 3
 };
-
 let serverState = SERVER_STATE.OFFLINE;
+let servingClients = false;
 
 const setup = async () => {
   serverState = SERVER_STATE.SETTING_UP;
   await thetaConnector.init();
   connectionManager.init();
   userManager.init();
-  await lineManager.init();
+  await lineManager.init(checkLine);
   gameManager.init(connectionManager, checkServerStatus);
   await obsConnector.init(checkServerStatus);
   checkServerStatus();
+};
+
+const checkLine = async () => {
+  if (serverState != SERVER_STATE.READY || !servingClients) return;
+  log.info('[NS] checking players in line ========================');
+  if (gameManager.getState() !== gameManager.GAME_STATE.READY) {
+    return log.warn('[NS] Game Manager is not ready');
+  };
+  if (lineManager.isLineEmpty()) {
+    return log.warn('[NS] There are no players in line');
+  };
+
+  const first = lineManager.getFirstInLine();
+  if (!first) {
+    log.warn('[NS] player is not ready to play');
+    lineManager.peek();
+    return;
+  }
+  const isPlayerPlaying = await gameManager.servePlayer(first);
+  if (!isPlayerPlaying) {
+    log.warn('[NS] player couldn\'t connect to the game.');
+    lineManager.peek();
+    return;
+  }
+  // if there is a second player then ask to connect to lobby
 };
 
 const checkServerStatus = () => {
@@ -42,7 +67,7 @@ const checkServerStatus = () => {
   log.info(`[LM] status=OK`);
   ready &&= obsConnector.isConnected();
   log.info(`[OC] status=${ obsConnector.isConnected() ? 'OK': 'FAIL' }`);
-  ready &&= gameManager.getState() > 2;
+  ready &&= gameManager.getState() >= gameManager.GAME_STATE.READY;
   log.info(`[GM] status=${ ['OFFLINE', 'CONNECTING', 'BUSY', 'READY', 'PLAYING'][gameManager.getState()] }`);
   serverState = ready ? SERVER_STATE.READY : SERVER_STATE.NOT_READY;
   log.info(`[NS] status=${ ready ? 'READY': 'NOT READY' }`);
@@ -61,11 +86,26 @@ const handleCommands = () => {
         await obsConnector.connect(true);
         checkServerStatus();
       break;
+      case 'OBS start':
+        log.info(`[NS] admin request OBS connector to start recording`);
+        await obsConnector.startRecording('aaa');
+      break;
+      case 'OBS stop':
+        log.info(`[NS] admin request OBS connector to stop recording`);
+        await obsConnector.stopRecording();
+      break;
       case 'status':
         log.info(`[NS] admin request for status`);
         checkServerStatus();
       break;
       case 'start':
+        log.info(`[NS] admin request to start serving clients`);
+        servingClients = true;
+        checkLine();
+        break;
+      case 'pause':
+        log.info(`[NS] admin request to pause serving clients`);
+        servingClients = false;
       break;
       case 'exit':
         log.info(`[NS] admin request for exit.\n\n\n`);

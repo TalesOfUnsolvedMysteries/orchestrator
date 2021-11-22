@@ -7,6 +7,7 @@ let obsConnected = false;
 let recordingFolder;
 let lastVideoName = '';
 let stateChangeListener;
+let onVideoSaved = _ => _;
 
 const init = async (_stateChangeListener) => {
   log.info(`[OC] OBS Connector - initialization`);
@@ -34,11 +35,12 @@ const connect = async (reset) => {
     return;
   }
   log.info('[OC] connected');
-  obs.on('RecordingStopped', async ({recordingFilename}) => {
+  obs.on('RecordingStopped', async ({ recordingFilename }) => {
     log.info(`[OC] recordingFilename: ${ recordingFilename }`);
     recordingFilename = recordingFilename.replace(recordingFolder, process.env.OBS_RECORDING_PATH);
     log.info('[OC] updated to', recordingFilename);
-    await uploadVideo(recordingFilename, lastVideoName);
+    const video = await uploadVideo(recordingFilename, lastVideoName);
+    onVideoSaved(video.id);
   });
   obs.on('ConnectionClosed', (data) => {
     log.warn('[OC] connection closed');
@@ -64,6 +66,11 @@ const stopRecording = async () => {
   await obs.send('SetFilenameFormatting', {'filename-formatting': '%CCYY-%MM-%DD %hh-%mm-%ss'});
 };
 
+const setScene = async (sceneName) => {
+  if (!obsConnected) return;
+  await obs.send('SetCurrentScene', {'scene-name': sceneName});
+}
+
 const test = async () => {
   await init();
   await startRecording('testing');
@@ -74,6 +81,10 @@ const test = async () => {
 module.exports = {
   init,
   connect,
+  startRecording,
+  stopRecording,
+  setScene,
+  onVideoSaved: (cb) => onVideoSaved = cb,
   isConnected: () => obsConnected
 };
 

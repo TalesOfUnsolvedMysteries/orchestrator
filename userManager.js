@@ -10,9 +10,10 @@ const USER_STATE = {
   CONNECTING: 0,
   CONNECTED: 1,
   INLINE: 2,
-  PLAYING: 3,
-  OUTLINE: 4,
-  DISCONNECTED: 5,
+  READY_TO_PLAY: 3,
+  PLAYING: 4,
+  OUTLINE: 5,
+  DISCONNECTED: 6,
 };
 
 const init = () => {
@@ -68,6 +69,11 @@ const _createUser = (_sessionID) => {
     getThetaAccount: _ => thetaAccount,
     getState: _ => state,
     getTurn: _ => turn,
+    getAdn: _ => adn,
+    getName: _ => name,
+    getCauseOfDeath: _ => death,
+    getIntroWords: _ => death,
+    getLastWords: _ => death,
     asObject: _ => {
       return {
         sessionID,

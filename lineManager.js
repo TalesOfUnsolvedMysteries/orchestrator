@@ -9,10 +9,12 @@ const log = require('./log');
 let line = [];
 let currentTurn = 0;
 let firstInLine = 0;
+let onLineChange = _ => _;
 
-const init = async () => {
+const init = async (_onLineChange) => {
   log.info(`[LM] Line Manager - initialization`);
   await syncLine();
+  onLineChange = _onLineChange;
 };
 
 const syncLine = async () => {
@@ -22,6 +24,7 @@ const syncLine = async () => {
   line = await contract.getLine();
   log.info(`[LM] current line: [${ line.join('-') }]`);
   log.info(`[LM] current turn: ${ currentTurn }`);
+  onLineChange();
 }
 
 // remove the first user from the line
@@ -30,6 +33,7 @@ const peek = async () => {
   if (line.length == 0) return userID;
   try {
     userID = await thetaConnector.peek();
+    log.warn(`[GM] ${ _userID } removed from the line.`);
   } catch (e) {
     log.error(`[LM] error on line manager`);
     log.error(e);
@@ -76,6 +80,7 @@ module.exports = {
   peek,
   requestTurnFor,
   getFirstInLine,
-  getNextPlayer
+  getNextPlayer,
+  isLineEmpty: line.length == 0
 };
 

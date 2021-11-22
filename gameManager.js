@@ -1,9 +1,11 @@
 const { v4: uuidv4 } = require('uuid');
 const log = require('./log');
 
-const lineManager = require('./lineManager');
 const userManager = require('./userManager');
-const { logger } = require('./log');
+const obsConnector = require('./obsConnector');
+const nftManager = require('./nftManager');
+const thetaConnector = require('./thetaConnector');
+const lineManager = require('./lineManager');
 
 let connectionManager;
 let stateChangeListener;
@@ -11,9 +13,9 @@ let stateChangeListener;
 const GAME_STATE = {
   OFFLINE: 0,
   CONNECTING: 1,
-  BUSY: 2,
-  READY: 3,
-  PLAYING: 4
+  READY: 2,
+  PLAYING: 3,
+  BUSY: 4
 }
 let state;
 let gameServerSocket;
@@ -24,37 +26,101 @@ let nextPlayer;
 let previousPlayer;
 const pendingConnections = {};
 
+let onMessageConfirmation = _ => _;
+
+const init = (_connectionManager, _stateChangeListener) => {
+  log.info(`[GM] Game Manager - initialization`);
+  setState(GAME_STATE.OFFLINE);
+  connectionManager = _connectionManager;
+  stateChangeListener = _stateChangeListener;
+};
+
 // allow active player to control the game server
 // game transition from lobby to playing
 
 // stop active player to control the game server
 // game transition from playing to ready
+// do this before calling endgame
+// - take screenshot of the game <in game>
+// - saves cause of death <WS>
+// - ask player to write last words <in game> -> <WS>
+// - take out control to the player <in game>
 const endGame = async (peerID) => {
-  const _userID = await lineManager.peek();
+  setState(GAME_STATE.BUSY);
+  // current player should be the same peerId
+  if (peerID != currentPlayer) {
+    log.error(`bad peer id requested to end game ${ peerID }`);
+    return;
+  }
+  const user = userManager.getUserByGodotPeerID(peerID);
+  // stops recording
+  // upload video to theta network -> via obsConnector
+  await obsConnector.stopRecording();
+  // - save video id
+  const videoId = await new Promise(resolve => obsConnector.onVideoSaved(resolve));
+  // - change scene on obs to other stuff
+  await obsConnector.setScene('PostGame');
+  // - moves to the bug card scene <in game>
+  // - saves screenshot <in game>
+  // wait until card is generated
+  const imageFile = await new Promise((resolve) => {
+    onMessageConfirmation = message => {
+      if (message == 'gs_cardGenerated') resolve();
+    };
+    gameServerSocket.send(`gs_generateCard:${ peerID }`);
+  });
+  // - split image in two
+  // - save NFT on storage -> when video is uploaded and images generated
+  const ipnft = await nftManager.generateNFT(user, imageFile, videoId);
+  // - create a reward for player with NFT metadata id
+  await thetaConnector.rewardGameToken(user.getUserID(), ipnft);
+  // - kick player from tcp connection <GAME>
+  // - line.peek
+  setState(GAME_STATE.READY);
+  await lineManager.peek();
 };
 
 // 
-const start = async () => {
-  if (state !== GAME_STATE.READY) {
-    log.warn(`[GM] game can't start = STATE=${ state }`);
+const servePlayer = async (user) => {
+  log.warn(`[GM] user_id: ${ user.getUserID() } is going to play next.`);
+  setState(GAME_STATE.BUSY);
+  // check player is connected tcp
+  requestClientConnection(user);
+  const isConnected = await new Promise((resolve) => {
+    let _count = 0;
+    const _checkUserStatus = () => {
+      if (_count >= 20) { // 10 seconds
+        return resolve(false);
+      }
+      if (!user.getGodotPeerID()) {
+        _count += 1;
+        return setTimeout(_checkUserStatus, 500);
+      }
+      resolve(true);
+    }
+  });
+  
+  if (!isConnected) {
+    // player is not connected and can not play
+    setState(GAME_STATE.READY);
     return false;
   }
-  const first = lineManager.getFirstInLine();
-  if (!first) {
-    log.warn('[GM] there are no players ready to play');
-    // check the line length...
-    const _userID = await lineManager.peek();
-    log.warn(`[GM] ${ _userID } removed from the line.`);
-    //setTimeout(start, 20000);
-    return;
-  }
+  // player is connected and ready to play.
+  const godotPeerID = user.getGodotPeerID();
+  currentPlayer = godotPeerID;
+  // ask player to take control of the game
+  gameServerSocket.send(`gs_assignPilot:${ godotPeerID }`);
+  // verify player is controlling the game?
+  // starts recording
+  await obsConnector.startRecording(`player-${ user.getTurn() }`);
+  // change scene on obs to main game
+  // starts countdown
+  setState(GAME_STATE.PLAYING);
+  setTimeout(() => console.log('check player disconnection'), 5.2*60*1000);
+};
 
-  log.warn(`[GM] user_id: ${ first.getUserID() } is the first in line.`);
-  requestClientConnection(first);
-}
 
-
-const requestClientConnection = (user) => {
+const requestClientConnection = async (user) => {
   const secretKey = uuidv4().replace(/\-/g, ''); // generate it
   pendingConnections[secretKey] = user.asObject();
   gameServerSocket.send(`gs_waitForConnection:${ secretKey }`);
@@ -62,12 +128,6 @@ const requestClientConnection = (user) => {
   setTimeout(() => delete pendingConnections[secretKey], 10000);
 }
 
-const init = (_connectionManager, _stateChangeListener) => {
-  log.info(`[GM] Game Manager - initialization`);
-  setState(GAME_STATE.OFFLINE);
-  connectionManager = _connectionManager;
-  stateChangeListener = _stateChangeListener;
-}
 
 const registerServer = (websocketClient) => {
   gameServerSocket = websocketClient;
@@ -95,7 +155,6 @@ const handleCommand = async (command, data) => {
     case 'gs_waitingConnection': {
       const { sessionID } = pendingConnections[data];
       connectionManager.sendMessageTo(sessionID, `gc_connect:${ data }`);
-      setTimeout(()=>logger.warn('[GM] Connection timeout for game server'), 10000);
     }
     break;
     case 'gs_connectionFail': {
@@ -116,12 +175,17 @@ const handleCommand = async (command, data) => {
         user.setGodotPeer(godotPeerID);
         delete pendingConnection[secret];
         log.info(`[GM] client=${ godotPeerID } associated to userID=${ user.getUserID() }`);
-        gameServerSocket.send(`gs_assignPilot:${godotPeerID}`);
       }
     }
     break;
+    case 'gs_cardGenerated': {
+      onMessageConfirmation(command);
+    }
+    break;
     case 'gs_pilot_disconnected': {
-      endGame(data);
+      if (currentPlayer == data) {
+        endGame(data);
+      }
     }
     break;
   }
@@ -129,8 +193,10 @@ const handleCommand = async (command, data) => {
 
 
 module.exports = {
+  GAME_STATE,
   init,
   registerServer,
   handleCommand,
+  servePlayer,
   getState: () => state
 };

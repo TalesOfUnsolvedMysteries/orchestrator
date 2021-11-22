@@ -1,4 +1,3 @@
-require('dotenv').config();
 const request = require('request');
 const fs = require('fs');
 const log = require('./log');
@@ -20,6 +19,23 @@ const getOptionsToUpload = (presigned_url, file) => {
       'Content-Type': 'application/octet-stream'
     },
     body: file
+  };
+};
+
+const getOptionsToTranscode = (id, title) => {
+  return {
+    'method': 'POST',
+    'url': 'https://api.thetavideoapi.com/video',
+    'headers': {
+      'x-tva-sa-id': process.env.THETA_VIDEO_API_KEY,
+      'x-tva-sa-secret': process.env.THETA_VIDEO_API_SECRET,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      source_upload_id: id,
+      playback_policy: 'public',
+      file_name: title
+    })
   };
 };
 
@@ -61,24 +77,17 @@ const uploadVideo = async (file, videoTitle, retries=0) => {
       resolve();
     });
   });
-
-  // transcode?
-  var options = {
-    'method': 'POST',
-    'url': 'https://api.thetavideoapi.com/video',
-    'headers': {
-      'x-tva-sa-id': process.env.THETA_VIDEO_API_KEY,
-      'x-tva-sa-secret': process.env.THETA_VIDEO_API_SECRET,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({"source_upload_id":video.id, "playback_policy":"public", "file_name": videoTitle})
-  };
-  request(options, (error, response) => {
-    if (error) throw new Error(error);
-    const res = JSON.parse(response.body);
-    log.info(res.body.videos[0]);
-  });
   
+  // transcode video
+  const transcodeOptions = getOptionsToTranscode(video.id, videoTitle);
+  const processedVideo = await new Promise((resolve, reject) => {
+    request(transcodeOptions, (error, response) => {
+      if (error) throw new Error(error);
+      const res = JSON.parse(response.body);
+      resolve(res.body.videos[0]);
+    });
+  });
+  return processedVideo;
 };
 
 module.exports = {
