@@ -90,10 +90,13 @@ const sendMessageTo = (sessionID, message) => {
 
 const messageParser = async (clientSocket, message) => {
   message = `${message}`;
-  const [command, data] = message.split(':');
+  const splitIndex = message.indexOf(':');
+  const command = splitIndex >= 0 ? message.substr(0, splitIndex) : message;
+  const data = splitIndex >= 0 && message.substr(splitIndex + 1);
+
   const user = userManager.getUser(clientSocket.sessionID);
   const connectionID = `${ clientSocket.ip }: ${ clientSocket.sessionID }`;
-  // console.log(`${clientSocket.sessionID} sends: ${ message }`);
+
   if (clientSocket.isGameServer && command.indexOf('gs_') === 0) {
     gameManager.handleCommand(command, data);
     return;
@@ -125,6 +128,18 @@ const messageParser = async (clientSocket, message) => {
       } else {
         console.warn(`[WS] ${ connectionID } sent an incorrect secret-key ${ data }`);
       }
+    break;
+    case 'setADN':
+      user.setAdn(data);
+    break;
+    case 'setBugName':
+      user.setBugName(data);
+    break;
+    case 'setIntroWords':
+      user.setIntroWords(data);
+    break;
+    case 'setLastWords':
+      user.setLastWords(data);
     break;
     default:
       log.warn(`[WS] ${ connectionID} send an invalid message: ${ message }`);

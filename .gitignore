@@ -41,6 +41,9 @@ build/Release
 # blockchain artifacts
 artifacts
 
+# game specifics
+rewards.json
+
 # Dependency directories
 node_modules/
 jspm_packages/

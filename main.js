@@ -53,6 +53,10 @@ const checkLine = async () => {
     return;
   }
   // if there is a second player then ask to connect to lobby
+  const nextPlayer = lineManager.getNextPlayer();
+  if (nextPlayer) {
+    gameManager.setupNextPlayer(nextPlayer);
+  }
 };
 
 const checkServerStatus = () => {
@@ -68,7 +72,7 @@ const checkServerStatus = () => {
   ready &&= obsConnector.isConnected();
   log.info(`[OC] status=${ obsConnector.isConnected() ? 'OK': 'FAIL' }`);
   ready &&= gameManager.getState() >= gameManager.GAME_STATE.READY;
-  log.info(`[GM] status=${ ['OFFLINE', 'CONNECTING', 'BUSY', 'READY', 'PLAYING'][gameManager.getState()] }`);
+  log.info(`[GM] status=${ ['OFFLINE', 'CONNECTING', 'READY', 'PLAYING', 'BUSY'][gameManager.getState()] }`);
   serverState = ready ? SERVER_STATE.READY : SERVER_STATE.NOT_READY;
   log.info(`[NS] status=${ ready ? 'READY': 'NOT READY' }`);
 };

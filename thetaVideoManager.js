@@ -79,14 +79,17 @@ const uploadVideo = async (file, videoTitle, retries=0) => {
   });
   
   // transcode video
+  console.log('transcoding video');
   const transcodeOptions = getOptionsToTranscode(video.id, videoTitle);
   const processedVideo = await new Promise((resolve, reject) => {
     request(transcodeOptions, (error, response) => {
       if (error) throw new Error(error);
       const res = JSON.parse(response.body);
+      console.log('video transcoded');
       resolve(res.body.videos[0]);
     });
   });
+  console.log('processed video', processedVideo);
   return processedVideo;
 };
 

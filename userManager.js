@@ -28,6 +28,14 @@ const _createUser = (_sessionID) => {
   let state = USER_STATE.CONNECTING;
   let encodedKey;
   let turn;
+  
+  let adn;
+  let bugName;
+  let deathCause;
+  let introWords;
+  let lastWords;
+  let score = 0;
+  let achievements = [];
 
   const ackConnection = (key) => {
     if (state === USER_STATE.CONNECTING && key === sessionID){
@@ -55,8 +63,27 @@ const _createUser = (_sessionID) => {
 
   const setGodotPeer = (_godotPeerID) => {
     godotPeerID = _godotPeerID;
-    userGodotPeerIDs[godotPeerID] = sessionID;
+    if (godotPeerID) {
+      userGodotPeerIDs[godotPeerID] = sessionID;
+    } else {
+      delete userGodotPeerIDs[godotPeerID];
+    }
   };
+
+  const setAdn = (_adn) => {
+    // must validate this user can have this adn
+    adn = _adn;
+  };
+
+  const scorePoints = async (points) => {
+    await thetaConnector.rewardPoints(userID, points);
+    score += points;
+  };
+
+  const awardGameToken = async (rewardId, ipnft) => {
+    await thetaConnector.rewardGameToken(userID, ipnft);
+    achievements.push(rewardId);
+  }
 
   return {
     ackConnection,
@@ -70,10 +97,19 @@ const _createUser = (_sessionID) => {
     getState: _ => state,
     getTurn: _ => turn,
     getAdn: _ => adn,
-    getName: _ => name,
-    getCauseOfDeath: _ => death,
-    getIntroWords: _ => death,
-    getLastWords: _ => death,
+    getBugName: _ => bugName,
+    getDeathCause: _ => deathCause,
+    getIntroWords: _ => introWords,
+    getLastWords: _ => lastWords,
+    getScore: _ => score,
+    getAchievements: _ => achievements,
+    setAdn,
+    setBugName: _bugName => bugName = _bugName,
+    setDeathCause: _deathCause => deathCause = _deathCause,
+    setIntroWords: _introWords => introWords = _introWords,
+    setLastWords: _lastWords => lastWords = _lastWords,
+    scorePoints,
+    awardGameToken,
     asObject: _ => {
       return {
         sessionID,
@@ -81,7 +117,14 @@ const _createUser = (_sessionID) => {
         godotPeerID,
         thetaAccount,
         state,
-        turn
+        turn,
+        adn,
+        bugName,
+        deathCause,
+        introWords,
+        lastWords,
+        score,
+        achievements
       }
     },
   };

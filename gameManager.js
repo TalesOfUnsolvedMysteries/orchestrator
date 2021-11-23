@@ -22,8 +22,7 @@ let gameServerSocket;
 
 // required connections
 let currentPlayer;
-let nextPlayer;
-let previousPlayer;
+
 const pendingConnections = {};
 
 let onMessageConfirmation = _ => _;
@@ -37,76 +36,25 @@ const init = (_connectionManager, _stateChangeListener) => {
 
 // allow active player to control the game server
 // game transition from lobby to playing
-
-// stop active player to control the game server
-// game transition from playing to ready
-// do this before calling endgame
-// - take screenshot of the game <in game>
-// - saves cause of death <WS>
-// - ask player to write last words <in game> -> <WS>
-// - take out control to the player <in game>
-const endGame = async (peerID) => {
-  setState(GAME_STATE.BUSY);
-  // current player should be the same peerId
-  if (peerID != currentPlayer) {
-    log.error(`bad peer id requested to end game ${ peerID }`);
-    return;
-  }
-  const user = userManager.getUserByGodotPeerID(peerID);
-  // stops recording
-  // upload video to theta network -> via obsConnector
-  await obsConnector.stopRecording();
-  // - save video id
-  const videoId = await new Promise(resolve => obsConnector.onVideoSaved(resolve));
-  // - change scene on obs to other stuff
-  await obsConnector.setScene('PostGame');
-  // - moves to the bug card scene <in game>
-  // - saves screenshot <in game>
-  // wait until card is generated
-  const imageFile = await new Promise((resolve) => {
-    onMessageConfirmation = message => {
-      if (message == 'gs_cardGenerated') resolve();
-    };
-    gameServerSocket.send(`gs_generateCard:${ peerID }`);
-  });
-  // - split image in two
-  // - save NFT on storage -> when video is uploaded and images generated
-  const ipnft = await nftManager.generateNFT(user, imageFile, videoId);
-  // - create a reward for player with NFT metadata id
-  await thetaConnector.rewardGameToken(user.getUserID(), ipnft);
-  // - kick player from tcp connection <GAME>
-  // - line.peek
-  setState(GAME_STATE.READY);
-  await lineManager.peek();
-};
-
-// 
 const servePlayer = async (user) => {
   log.warn(`[GM] user_id: ${ user.getUserID() } is going to play next.`);
   setState(GAME_STATE.BUSY);
   // check player is connected tcp
-  requestClientConnection(user);
-  const isConnected = await new Promise((resolve) => {
-    let _count = 0;
-    const _checkUserStatus = () => {
-      if (_count >= 20) { // 10 seconds
-        return resolve(false);
-      }
-      if (!user.getGodotPeerID()) {
-        _count += 1;
-        return setTimeout(_checkUserStatus, 500);
-      }
-      resolve(true);
+  let godotPeerID = user.getGodotPeerID();
+  console.log('godot peer id', godotPeerID);
+  if (!godotPeerID) {
+    console.log('going to request conneciton');
+    const isConnected = await requestClientConnection(user);
+    console.log('is user connected?', isConnected);
+    if (!isConnected) {
+      setState(GAME_STATE.READY);
+      return false;
     }
-  });
-  
-  if (!isConnected) {
-    // player is not connected and can not play
-    setState(GAME_STATE.READY);
-    return false;
+    godotPeerID = user.getGodotPeerID();
+    console.log('it looks good', godotPeerID);
   }
+  
   // player is connected and ready to play.
-  const godotPeerID = user.getGodotPeerID();
   currentPlayer = godotPeerID;
   // ask player to take control of the game
   gameServerSocket.send(`gs_assignPilot:${ godotPeerID }`);
@@ -114,20 +62,115 @@ const servePlayer = async (user) => {
   // starts recording
   await obsConnector.startRecording(`player-${ user.getTurn() }`);
   // change scene on obs to main game
+  await obsConnector.setScene('Game');
   // starts countdown
   setState(GAME_STATE.PLAYING);
   setTimeout(() => console.log('check player disconnection'), 5.2*60*1000);
+  return true;
+};
+
+
+// stop active player to control the game server
+// game transition from playing to ready
+// do this before calling gameOver
+// - take screenshot of the game <in game>
+// - ask player to write last words <in game> -> <WS>
+// - take out control to the player <in game>
+const gameOver = async (peerID, deathCause) => {
+  console.log(`01 > ${ peerID } setting to busy`);
+  setState(GAME_STATE.BUSY);
+  // current player should be the same peerId
+  if (peerID != currentPlayer) {
+    log.error(`bad peer id requested to end game ${ peerID }`);
+    return;
+  }
+  const user = userManager.getUserByGodotPeerID(peerID);
+  log.warn(`[GM] Game over for user_id: ${ user.getUserID() }`);
+  
+  // saves cause of death <WS>
+  user.setDeathCause(deathCause);
+
+  // stops recording
+  // upload video to theta network -> via obsConnector
+  
+  // save video id
+  const videoId = await new Promise(async (resolve) => {
+    obsConnector.onVideoSaved(resolve);
+    obsConnector.stopRecording();
+  });
+  console.log(`02 > post game ${ videoId }`);
+  // change scene on obs to other stuff
+  await obsConnector.setScene('postGame');
+  
+  // - moves to the bug card scene <in game>
+  // - saves screenshot <in game>
+  // -wait until card is generated
+  console.log(`03 > save image`);
+  const imageFile = await new Promise((resolve) => {
+    onMessageConfirmation = (message, data) => {
+      console.log(message, data);
+      if (message == 'gs_cardGenerated') resolve(data);
+    };
+    console.log(`04 > generate card`);
+    gameServerSocket.send(`gs_generateCard:p_${ user.getTurn() }`);
+  });
+  console.log(`05 > image file ${ imageFile }`);
+
+  // - split image in two
+  // - save NFT on storage -> when video is uploaded and images generated
+  const ipnft = await nftManager.generateNFT(user, imageFile, videoId);
+  console.log(`06 > ipnft ${ ipnft }`);
+  // - create a reward for player with NFT metadata id
+  await thetaConnector.rewardGameToken(user.getUserID(), ipnft);
+  console.log(`07 > rewarded game token`);
+  // - kick player from tcp connection <GAME>
+  user.setGodotPeer(-1);
+  currentPlayer = -1;
+  // - line.peek
+  setState(GAME_STATE.READY);
+  await lineManager.peek();
+};
+
+
+const setupNextPlayer = async (user) => {
+  await requestClientConnection(user);
 };
 
 
 const requestClientConnection = async (user) => {
   const secretKey = uuidv4().replace(/\-/g, ''); // generate it
   pendingConnections[secretKey] = user.asObject();
-  gameServerSocket.send(`gs_waitForConnection:${ secretKey }`);
-  // key will be valid only for 10 seconds
-  setTimeout(() => delete pendingConnections[secretKey], 10000);
+  const isConnected = await new Promise((resolve) => {
+    console.log('sending connection?');
+    gameServerSocket.send(`gs_waitForConnection:${ secretKey }`);
+    let _count = 0;
+    const _checkUserStatus = () => {
+      if (_count >= 20) { // 10 seconds
+        delete pendingConnections[secretKey];
+        return resolve(false);
+      }
+      if (!user.getGodotPeerID()) {
+        _count += 1;
+        console.log('not ready, try again=', _count);
+        return setTimeout(_checkUserStatus, 500);
+      }
+      console.log('resolve to true');
+      resolve(true);
+    };
+    _checkUserStatus();
+  });
+  console.log('isConnected', isConnected);
+  return isConnected;
 }
 
+const rewardPoints = async (user, points) => {
+  await user.scorePoints(points);
+};
+
+const rewardGameToken = async (user, rewardId) => {
+  const ipnft = await nftManager.allocateRewardToken(rewardId);
+  await user.awardGameToken(rewardId, ipnft);
+};
 
 const registerServer = (websocketClient) => {
   gameServerSocket = websocketClient;
@@ -179,13 +222,28 @@ const handleCommand = async (command, data) => {
     }
     break;
     case 'gs_cardGenerated': {
-      onMessageConfirmation(command);
+      onMessageConfirmation(command, data);
     }
     break;
-    case 'gs_pilot_disconnected': {
-      if (currentPlayer == data) {
-        endGame(data);
-      }
+    case 'gs_gameOver': {
+      const [peerId, causeOfDeath] = data.split('-');
+      gameOver(peerId, causeOfDeath);
+    }
+    break;
+    case 'gs_player_disconnected': {
+      const user = userManager.getUserByGodotPeerID(peerID);
+      user.setGodotPeer(null);
+      // handle player disconnection?
+    }
+    break;
+    case 'gs_player_score': {
+      const user = userManager.getUserByGodotPeerID(currentPlayer);
+      rewardPoints(user, parseInt(data));
+    }
+    break;
+    case 'gs_player_reward': {
+      const user = userManager.getUserByGodotPeerID(currentPlayer);
+      rewardGameToken(user, data);
     }
     break;
   }
@@ -198,5 +256,6 @@ module.exports = {
   registerServer,
   handleCommand,
   servePlayer,
+  setupNextPlayer,
   getState: () => state
 };

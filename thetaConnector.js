@@ -9,7 +9,7 @@ let connected = false;
 const networkConfig = {
   local_hardhat: {
     url: 'http://127.0.0.1:8545/',
-    contractAddress: '0xa513E6E4b8f2a923D98304ec87F64353C4D5C853',
+    contractAddress: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
   },
   theta_privatenet: {
     url: 'http://127.0.0.1:18888/rpc',

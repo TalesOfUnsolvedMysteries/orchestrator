@@ -33,7 +33,7 @@ const peek = async () => {
   if (line.length == 0) return userID;
   try {
     userID = await thetaConnector.peek();
-    log.warn(`[GM] ${ _userID } removed from the line.`);
+    log.warn(`[GM] ${ userID } removed from the line.`);
   } catch (e) {
     log.error(`[LM] error on line manager`);
     log.error(e);
@@ -81,6 +81,6 @@ module.exports = {
   requestTurnFor,
   getFirstInLine,
   getNextPlayer,
-  isLineEmpty: line.length == 0
+  isLineEmpty: _ => line.length == 0
 };
 
