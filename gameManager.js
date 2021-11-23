@@ -79,12 +79,21 @@ const servePlayer = async (user) => {
 const gameOver = async (peerID, deathCause) => {
   console.log(`01 > ${ peerID } setting to busy`);
   setState(GAME_STATE.BUSY);
-  // current player should be the same peerId
+  // current player must be the same peerId
   if (peerID != currentPlayer) {
     log.error(`bad peer id requested to end game ${ peerID }`);
     return;
   }
   const user = userManager.getUserByGodotPeerID(peerID);
+  // by now sudden disconections won't save user play on blockchain.
+  if (!user) {
+    log.error(`[GM] user was disconnected, can't save it's state now.`);
+    obsConnector.stopRecording();
+    currentPlayer = -1;
+    setState(GAME_STATE.READY);
+    await lineManager.peek();
+    return;
+  }
   log.warn(`[GM] Game over for user_id: ${ user.getUserID() }`);
   
   // saves cause of death <WS>
