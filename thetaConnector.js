@@ -104,6 +104,17 @@ const allocateUser = async(sessionID, secretWord) => {
   return { userID, encodedKey };
 };
 
+const syncUser = async (user) => {
+  if (!_contract) throw Error('not connected to theta network');
+  let turn = await _contract.line_turn(user.getUserID());
+  const firstInLine = await _contract.first_in_line();
+  const currentTurn = await _contract.line_turn(firstInLine);
+  if (turn > currentTurn) {
+    user.assignTurn(turn);
+  }
+};
+
+
 const addToLine = async (userID) => {
   if (!_contract) throw Error('not connected to theta network');
   const turn = await new Promise(async (resolve) => {
@@ -153,9 +164,11 @@ module.exports = {
   isConnected: () => connected,
   getContract,
   allocateUser,
+  syncUser,
   addToLine,
   peek,
   rewardGameToken,
   rewardPoints,
-  addEventListener
+  addEventListener,
+  encodeKey: (key) => ethers.utils.solidityKeccak256(['string'],[key])
 };

@@ -71,7 +71,7 @@ const getNextPlayer = () => {
   const nextUser = userManager.getUserByUserID(nextID);
   // should check if the user is online if not, send a notification?
   return nextUser;
-}
+};
 
 
 module.exports = {

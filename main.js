@@ -7,6 +7,7 @@ const gameManager = require('./gameManager');
 const obsConnector = require('./obsConnector');
 const connectionManager = require('./connectionManager');
 const log = require('./log');
+const db = require('./dataManager');
 const readline = require("readline");
 
 
@@ -20,6 +21,7 @@ let serverState = SERVER_STATE.OFFLINE;
 let servingClients = false;
 
 const setup = async () => {
+  await db.init();
   serverState = SERVER_STATE.SETTING_UP;
   await thetaConnector.init();
   connectionManager.init();

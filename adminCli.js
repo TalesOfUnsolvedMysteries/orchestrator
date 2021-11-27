@@ -45,6 +45,20 @@ const createCommand = (command, description, getMethod, setMethod) => {
   });
 };
 
+program.command('peek')
+.description('remove first user from line')
+.action(async () => {
+  try {
+    const _contract = await getContract();
+    const tx = await _contract.peek({ gasLimit: '500000'});
+    const receipt = await tx.wait();
+    console.log(`transaction executed hash: ${ receipt.transactionHash }`);
+    console.log(`gas used = ${ receipt.cumulativeGasUsed } at ${ receipt.effectiveGasPrice } price.`);
+  } catch (e) {
+    console.error(e);
+  }
+});
+
 program.command('premium_accessory <id> [price] [points]')
 .description('sets the price for a premium accesory')
 .action(async (id, price, points) => {

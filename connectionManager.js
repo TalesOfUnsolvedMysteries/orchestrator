@@ -110,12 +110,23 @@ const messageParser = async (clientSocket, message) => {
     case 'pong':
       clientSocket.isAlive = true;
     break;
+    case 'recoverSession':
+      const [userID, password] = data.split('--');
+      console.log(`${userID} -- ${password}`)
+      const recovered = await user.recoverSession(userID, password);
+      if (recovered) {
+        clientSocket.send(`userRecovered:${ user.getUserID() }-${ user.getTurn() }`);
+      } else {
+        clientSocket.send('userRecoveryFails:1');
+      }
+    break;
     case 'allocateUser':
       await user.allocateOnBlockchain(data); // data is the secret word
       log.info(`[WS] connection: ${ connectionID } had allocated the userID: ${ user.getUserID() }`);
       clientSocket.send(`userAssigned:${ user.getUserID() }`);
     break;
     case 'requestTurn':
+      console.log(`current user turn: ${ user.getTurn() }`);
       await lineManager.requestTurnFor(user);
       const turn = user.getTurn();
       if (!turn) log.warn(`[WS] connection: ${ connectionID } turn request was rejected`);

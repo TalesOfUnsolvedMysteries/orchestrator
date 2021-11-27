@@ -1,4 +1,5 @@
-const { allocateUser } = require('./thetaConnector');
+const { allocateUser, syncUser, encodeKey } = require('./thetaConnector');
+const db = require('./dataManager');
 const log = require('./log');
 
 const users = {};
@@ -21,13 +22,13 @@ const init = () => {
 }
 
 const _createUser = (_sessionID) => {
-  let sessionID = _sessionID;
-  let userID = _sessionID;
-  let godotPeerID;
-  let thetaAccount;
+  let sessionID = _sessionID; // temporal
+  let userID = _sessionID;    // permanent
+  let godotPeerID;            // temporal
+  let thetaAccount;           // permanent
   let state = USER_STATE.CONNECTING;
-  let encodedKey;
-  let turn;
+  let encodedKey;             // permanent
+  let turn=0;
   
   let adn;
   let bugName;
@@ -54,7 +55,23 @@ const _createUser = (_sessionID) => {
     encodedKey = reply.encodedKey;
     log.info(`[UM] userID allocated to ${ userID }`);
     log.info(`[UM] protected by ${ encodedKey }`);
-  }
+    await db.saveUser(userID, encodedKey);
+  };
+
+  const recoverSession = async (_userID, password) => {
+    const _encodedKey = encodeKey(password);
+    const _user = await db.getUser(_userID, _encodedKey);
+    if (!_user) {
+      return false;
+    }
+    delete userIDs[userID];
+    userID = _user.id;
+    encodedKey = _user.password;
+    thetaAccount = _user.address;
+    userIDs[userID] = sessionID;
+    await syncUser(_self);
+    return true;
+  };
 
   const assignTurn = async (_turn) => {
     turn = _turn;
@@ -85,9 +102,10 @@ const _createUser = (_sessionID) => {
     achievements.push(rewardId);
   }
 
-  return {
+  const _self = {
     ackConnection,
     allocateOnBlockchain,
+    recoverSession,
     assignTurn,
     setGodotPeer,
     getSessionID: _ => sessionID,
@@ -128,6 +146,7 @@ const _createUser = (_sessionID) => {
       }
     },
   };
+  return _self;
 }
 
 const deleteUser = (sessionID) => {
