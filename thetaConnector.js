@@ -33,6 +33,7 @@ const init = async () => {
   try {
     await connect();
     connected = true;
+    log.info(`[TC] Theta connection successful`);
   } catch(e) {
     log.error('[TC] error on connection');
     log.error(e);
@@ -94,29 +95,36 @@ const removeEventListener = (eventName, key) => {
 
 const allocateUser = async(sessionID, secretWord) => {
   if (!_contract) throw Error('not connected to theta network');
+  log.info(`[TC] >> Blockchain allocating user for session: ${ sessionID } - (wait)`);
   const encodedKey = ethers.utils.solidityKeccak256(['string'],[secretWord]);
   const userID = await new Promise(async (resolve) => {
     addEventListener('userAllocated', sessionID, resolve);
     const tx = await _contract.allocateUser(sessionID, encodedKey, { gasLimit: '500000'});
     await tx.wait();
   });
+  log.info(`[TC] user allocated: ${ userID } <<`);
   removeEventListener('userAllocated', sessionID);
   return { userID, encodedKey };
 };
 
 const syncUser = async (user) => {
   if (!_contract) throw Error('not connected to theta network');
+  log.info(`[TC] >> Blockchain syncing user: ${ user.getUserID() } - (wait)`);
   let turn = await _contract.line_turn(user.getUserID());
   const firstInLine = await _contract.first_in_line();
-  const currentTurn = await _contract.line_turn(firstInLine);
-  if (turn > currentTurn) {
+  console.log(firstInLine, turn);
+  if (turn > 0) {
+    log.info(`[TC] Blockchain user ${ user.getUserID() } has turn: ${ turn } <<`);
     user.assignTurn(turn);
+  } else {
+    log.info(`[TC] Blockchain user ${ user.getUserID() } don't have turn assigned <<`);
   }
 };
 
 
 const addToLine = async (userID) => {
   if (!_contract) throw Error('not connected to theta network');
+  log.info(`[TC] >> Blockchain requesting turn for user: ${ userID } - (wait)`);
   const turn = await new Promise(async (resolve) => {
     addEventListener('turnAssigned', userID, resolve);
     try {
@@ -127,40 +135,47 @@ const addToLine = async (userID) => {
       resolve(0);
     }
   });
+  log.info(`[TC] Blockchain user ${ userID } got turn: ${ turn } <<`);
   removeEventListener('turnAssigned', userID);
   return turn;
 };
 
 const peek = async () => {
   if (!_contract) throw Error('not connected to theta network');
+  log.info(`[TC] >> Blockchain line peek requested - (wait)`);
   const removedUserID = await new Promise(async (resolve) => {
     addEventListener('linePeeked', '_', resolve);
     const tx = await _contract.peek({ gasLimit: '500000'});
     await tx.wait();
   });
+  log.info(`[TC] Blockchain first user in line removed <<`);
   removeEventListener('linePeeked', '_');
   return removedUserID;
 };
 
 const rewardGameToken = async (userID, nftUrl) => {
   if (!_contract) throw Error('not connected to theta network');
+  log.info(`[TC] >> Blockchain tokenRewarded event: ${ userID } ${ nftUrl } - (wait)`);
   const tokenReward = await new Promise(async (resolve) => {
     addEventListener('tokenRewarded', userID, resolve);
     const tx = await _contract.rewardGameToken(userID, nftUrl, { gasLimit: '500000'});
     await tx.wait();
   });
   removeEventListener('tokenRewarded', userID);
+  log.info(`[TC] Blockchain tokenRewarded <<`);
   return tokenReward;
 };
 
 const rewardPoints = async (userID, points) => {
   if (!_contract) throw Error('not connected to theta network');
+  log.info(`[TC] >> Blockchain reward points event: ${ userID } ${ points } - (wait)`);
   const totalPoints = await new Promise(async (resolve) => {
     addEventListener('pointsRewarded', userID, resolve);
     const tx = await _contract.rewardPoints(userID, points, { gasLimit: '500000'});
     await tx.wait();
   });
   removeEventListener('pointsRewarded', userID);
+  log.info(`[TC] Blockchain points rewarded <<`);
   return totalPoints;
 };
 

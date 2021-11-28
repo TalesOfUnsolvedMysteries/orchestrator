@@ -19,6 +19,7 @@ const init = async (_onLineChange) => {
 
 const syncLine = async () => {
   const contract = thetaConnector.getContract();
+  log.info(`[LM] line syncronization... (wait)`);
   firstInLine = await contract.first_in_line();
   currentTurn = await contract.line_turn(firstInLine);
   line = await contract.getLine();
@@ -42,6 +43,7 @@ const peek = async () => {
   return userID;
 };
 
+const userTurnRequests = [];
 
 const requestTurnFor = async (user) => {
   const { state, userID, sessionID } = user.asObject();
@@ -50,10 +52,17 @@ const requestTurnFor = async (user) => {
       log.warn(`[LM] ${ sessionID } Can't join to line, request allocation for this player first`);
       return;
     }
-    const turn = await thetaConnector.addToLine(user.getUserID());
-    log.info(`[LM] ${ user.getUserID() } has the turn ${ turn }`);
+    if (userTurnRequests.indexOf(userID) !== -1) {
+      log.warn(`[LM] there is a request for turn by user: ${ userID } already in progress`);
+      return;
+    }
+    userTurnRequests.push(userID);
+    const turn = await thetaConnector.addToLine(userID);
+    log.info(`[LM] ${ userID } has the turn ${ turn }`);
     user.assignTurn(turn);
     await syncLine();
+    const index = userTurnRequests.indexOf(userID);
+    userTurnRequests.splice(index, 1);
   }
 };
 

@@ -17,6 +17,8 @@ const GAME_STATE = {
   PLAYING: 3,
   BUSY: 4
 }
+
+const GAME_STATE_NAME = ['OFFLINE', 'CONNECTING', 'READY', 'PLAYING', 'BUSY'];
 let state;
 let gameServerSocket;
 
@@ -192,6 +194,7 @@ const registerServer = (websocketClient) => {
 }
 
 const setState = (newState) => {
+  log.info(`[GM] Game state change from: ${ GAME_STATE_NAME[state] } to ${ GAME_STATE_NAME[newState] }`);
   state = newState;
   if (stateChangeListener && (newState==GAME_STATE.READY || newState==GAME_STATE.OFFLINE)) {
     stateChangeListener();

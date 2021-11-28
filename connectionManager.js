@@ -121,9 +121,11 @@ const messageParser = async (clientSocket, message) => {
       }
     break;
     case 'allocateUser':
-      await user.allocateOnBlockchain(data); // data is the secret word
-      log.info(`[WS] connection: ${ connectionID } had allocated the userID: ${ user.getUserID() }`);
-      clientSocket.send(`userAssigned:${ user.getUserID() }`);
+      const _userId = await user.allocateOnBlockchain(data); // data is the secret word
+      if (_userId) {
+        log.info(`[WS] connection: ${ connectionID } had allocated the userID: ${ user.getUserID() }`);
+        clientSocket.send(`userAssigned:${ user.getUserID() }`);
+      }
     break;
     case 'requestTurn':
       console.log(`current user turn: ${ user.getTurn() }`);

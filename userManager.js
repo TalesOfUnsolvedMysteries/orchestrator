@@ -11,10 +11,11 @@ const USER_STATE = {
   CONNECTING: 0,
   CONNECTED: 1,
   INLINE: 2,
-  READY_TO_PLAY: 3,
-  PLAYING: 4,
-  OUTLINE: 5,
-  DISCONNECTED: 6,
+  BUSY: 3,
+  READY_TO_PLAY: 4,
+  PLAYING: 5,
+  OUTLINE: 6,
+  DISCONNECTED: 7,
 };
 
 const init = () => {
@@ -48,6 +49,9 @@ const _createUser = (_sessionID) => {
 
   const allocateOnBlockchain = async (secretWord) => {
     if (userID !== sessionID) return;
+    if (state === USER_STATE.BUSY) return;
+    const previousState = state;
+    state = USER_STATE.BUSY;
     const reply = await allocateUser(sessionID, secretWord);
     delete userIDs[userID];
     userID = reply.userID;
@@ -56,6 +60,8 @@ const _createUser = (_sessionID) => {
     log.info(`[UM] userID allocated to ${ userID }`);
     log.info(`[UM] protected by ${ encodedKey }`);
     await db.saveUser(userID, encodedKey);
+    state = previousState;
+    return userID;
   };
 
   const recoverSession = async (_userID, password) => {
