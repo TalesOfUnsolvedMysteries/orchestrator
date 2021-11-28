@@ -119,8 +119,13 @@ const addToLine = async (userID) => {
   if (!_contract) throw Error('not connected to theta network');
   const turn = await new Promise(async (resolve) => {
     addEventListener('turnAssigned', userID, resolve);
-    const tx = await _contract.addToLine(userID, { gasLimit: '500000'});
-    await tx.wait();
+    try {
+      const tx = await _contract.addToLine(userID, { gasLimit: '500000'});
+      await tx.wait();
+    } catch (error) {
+      console.error(error);
+      resolve(0);
+    }
   });
   removeEventListener('turnAssigned', userID);
   return turn;
