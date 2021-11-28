@@ -18,7 +18,7 @@ const networkConfig = {
   },
   theta_testnet: {
       url: 'https://eth-rpc-api-testnet.thetatoken.org/rpc',
-      contractAddress: '',
+      contractAddress: '0xC8cC799f3d619f9D27Fb9765EB9bBc0A39B3B997',
       chainId: 365,
   },
   theta_mainnet: {

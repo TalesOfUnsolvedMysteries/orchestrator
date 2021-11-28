@@ -20,8 +20,8 @@ const init = () => {
 };
 
 const startServer = () => {
-  log.info('[WS] initializating websocket server at 8080');
-  wss = new WebSocketServer({ port: 8080 });
+  log.info('[WS] initializating websocket server at 7334');
+  wss = new WebSocketServer({ port: 7334 });
   wss.on('connection', (clientSocket, req) => {
     const ip = req.socket.remoteAddress;
     log.info(`[WS] incomming connection from ${ ip }`);
