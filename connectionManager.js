@@ -154,6 +154,9 @@ const messageParser = async (clientSocket, message) => {
     case 'setLastWords':
       user.setLastWords(data);
     break;
+    case 'setReadyToPlay':
+      user.setLastWords(data);
+    break;
     default:
       log.warn(`[WS] ${ connectionID} send an invalid message: ${ message }`);
   }

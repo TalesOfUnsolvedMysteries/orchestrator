@@ -36,18 +36,18 @@ const checkLine = async () => {
   if (serverState != SERVER_STATE.READY || !servingClients) return;
   log.info('[NS] checking players in line ========================');
   if (gameManager.getState() !== gameManager.GAME_STATE.READY) {
-    return log.warn('[NS] Game Manager is not ready');
+    return log.warn(`[NS] Game Manager is not ready ${gameManager.GAME_STATE_NAME[gameManager.getState()]}`);
   };
   if (lineManager.isLineEmpty()) {
     return log.warn('[NS] There are no players in line');
   };
-
   const first = lineManager.getFirstInLine();
   if (!first) {
     log.warn('[NS] player is not ready to play');
     lineManager.peek();
     return;
   }
+  log.info(`[NS] first player in line is ${ first.getUserID() }`);
   const isPlayerPlaying = await gameManager.servePlayer(first);
   if (!isPlayerPlaying) {
     log.warn('[NS] player couldn\'t connect to the game.');

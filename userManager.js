@@ -158,8 +158,10 @@ const _createUser = (_sessionID) => {
 const deleteUser = (sessionID) => {
   const user = users[sessionID];
   const userID = user.getUserID();
+  const godotPeerID = user.getGodotPeerID();
   delete users[sessionID];
   delete userIDs[userID];
+  delete userGodotPeerIDs[godotPeerID];
 };
 const getUser = (sessionID) => users[sessionID];
 const getUserByUserID = (userID) => getUser(userIDs[userID]);

@@ -28,6 +28,7 @@ let currentPlayer;
 const pendingConnections = {};
 
 let onMessageConfirmation = _ => _;
+let onPilotReady = _ => _;
 
 const init = (_connectionManager, _stateChangeListener) => {
   log.info(`[GM] Game Manager - initialization`);
@@ -45,7 +46,7 @@ const servePlayer = async (user) => {
   let godotPeerID = user.getGodotPeerID();
   console.log('godot peer id', godotPeerID);
   if (!godotPeerID) {
-    console.log('going to request conneciton');
+    console.log('going to request connection');
     const isConnected = await requestClientConnection(user);
     console.log('is user connected?', isConnected);
     if (!isConnected) {
@@ -58,9 +59,21 @@ const servePlayer = async (user) => {
   
   // player is connected and ready to play.
   currentPlayer = godotPeerID;
+  
   // ask player to take control of the game
+  log.warn(`[GM] request to pilot`);
   gameServerSocket.send(`gs_assignPilot:${ godotPeerID }`);
   // verify player is controlling the game?
+  log.warn(`[GM] waiting for pilot's confirmation`);
+  const pilotEngage = await new Promise((resolve) => {
+    onPilotReady = (connected) => resolve(connected);
+  });
+  if (!pilotEngage) {
+    log.warn(`[GM] Pilot disconnected`);
+    setState(GAME_STATE.READY);
+    return false;
+  }
+  log.warn(`[GM] Pilot engaged and ready to play.`);
   // starts recording
   await obsConnector.startRecording(`player-${ user.getTurn() }`);
   // change scene on obs to main game
@@ -93,6 +106,7 @@ const gameOver = async (peerID, deathCause) => {
     obsConnector.stopRecording();
     currentPlayer = -1;
     setState(GAME_STATE.READY);
+    gameServerSocket.send(`gs_gotomenu:1`);
     await lineManager.peek();
     return;
   }
@@ -105,6 +119,7 @@ const gameOver = async (peerID, deathCause) => {
   // upload video to theta network -> via obsConnector
   
   // save video id
+  log.warn(`[GM] waiting for video upload`);
   const videoId = await new Promise(async (resolve) => {
     obsConnector.onVideoSaved(resolve);
     obsConnector.stopRecording();
@@ -243,9 +258,13 @@ const handleCommand = async (command, data) => {
     }
     break;
     case 'gs_player_disconnected': {
-      const user = userManager.getUserByGodotPeerID(peerID);
-      user.setGodotPeer(null);
+      console.log('player disconnected', data);
+      const user = userManager.getUserByGodotPeerID(data);
+      user && user.setGodotPeer(null);
       // handle player disconnection?
+      if (currentPlayer == data) {
+        onPilotReady(false);
+      }
     }
     break;
     case 'gs_player_score': {
@@ -258,12 +277,17 @@ const handleCommand = async (command, data) => {
       rewardGameToken(user, data);
     }
     break;
+    case 'gs_pilotReady': {
+      onPilotReady(true);
+    }
+    break;
   }
 }
 
 
 module.exports = {
   GAME_STATE,
+  GAME_STATE_NAME,
   init,
   registerServer,
   handleCommand,
