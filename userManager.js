@@ -106,7 +106,13 @@ const _createUser = (_sessionID) => {
   const awardGameToken = async (rewardId, ipnft) => {
     await thetaConnector.rewardGameToken(userID, ipnft);
     achievements.push(rewardId);
-  }
+  };
+
+  const gameOver = async (_deathCause) => {
+    state = USER_STATE.OUTLINE;
+    turn = 0;
+    deathCause = _deathCause
+  };
 
   const _self = {
     ackConnection,
@@ -114,6 +120,7 @@ const _createUser = (_sessionID) => {
     recoverSession,
     assignTurn,
     setGodotPeer,
+    gameOver,
     getSessionID: _ => sessionID,
     getUserID: _ => userID,
     getGodotPeerID: _ => godotPeerID,
@@ -129,7 +136,6 @@ const _createUser = (_sessionID) => {
     getAchievements: _ => achievements,
     setAdn,
     setBugName: _bugName => bugName = _bugName,
-    setDeathCause: _deathCause => deathCause = _deathCause,
     setIntroWords: _introWords => introWords = _introWords,
     setLastWords: _lastWords => lastWords = _lastWords,
     scorePoints,

@@ -45,7 +45,7 @@ const servePlayer = async (user) => {
   // check player is connected tcp
   let godotPeerID = user.getGodotPeerID();
   console.log('godot peer id', godotPeerID);
-  if (!godotPeerID) {
+  if (!godotPeerID || godotPeerID==-1) {
     console.log('going to request connection');
     const isConnected = await requestClientConnection(user);
     console.log('is user connected?', isConnected);
@@ -66,8 +66,19 @@ const servePlayer = async (user) => {
   // verify player is controlling the game?
   log.warn(`[GM] waiting for pilot's confirmation`);
   const pilotEngage = await new Promise((resolve) => {
-    onPilotReady = (connected) => resolve(connected);
+    let solved = false;
+    onPilotReady = (connected) => {
+      solved = true;
+      resolve(connected);
+    };
+    /*setTimeout(() => {
+      if (solved) return;
+      log.warn(`[GM] pilot's timeout`);
+      onPilotReady = _ => _;
+      resolve(false);
+    }, 60000);*/
   });
+  onPilotReady = _ => _;
   if (!pilotEngage) {
     log.warn(`[GM] Pilot disconnected`);
     setState(GAME_STATE.READY);
@@ -113,7 +124,7 @@ const gameOver = async (peerID, deathCause) => {
   log.warn(`[GM] Game over for user_id: ${ user.getUserID() }`);
   
   // saves cause of death <WS>
-  user.setDeathCause(deathCause);
+  user.gameOver(deathCause);
 
   // stops recording
   // upload video to theta network -> via obsConnector
@@ -150,7 +161,7 @@ const gameOver = async (peerID, deathCause) => {
   await thetaConnector.rewardGameToken(user.getUserID(), ipnft);
   console.log(`07 > rewarded game token`);
   // - kick player from tcp connection <GAME>
-  user.setGodotPeer(-1);
+  user.setGodotPeer(null);
   currentPlayer = -1;
   // - line.peek
   setState(GAME_STATE.READY);
@@ -175,7 +186,7 @@ const requestClientConnection = async (user) => {
         delete pendingConnections[secretKey];
         return resolve(false);
       }
-      if (!user.getGodotPeerID()) {
+      if (!user.getGodotPeerID() || user.getGodotPeerID()==-1) {
         _count += 1;
         console.log('not ready, try again=', _count);
         return setTimeout(_checkUserStatus, 500);
