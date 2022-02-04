@@ -4,7 +4,7 @@ const log = require('./log');
 const userManager = require('./userManager');
 const obsConnector = require('./obsConnector');
 const nftManager = require('./nftManager');
-const thetaConnector = require('./thetaConnector');
+const blockchainConnector = require('./nearConnector');
 const lineManager = require('./lineManager');
 
 let connectionManager;
@@ -158,7 +158,7 @@ const gameOver = async (peerID, deathCause) => {
   const ipnft = await nftManager.generateNFT(user, imageFile, videoId);
   console.log(`06 > ipnft ${ ipnft }`);
   // - create a reward for player with NFT metadata id
-  await thetaConnector.rewardGameToken(user.getUserID(), ipnft);
+  await blockchainConnector.rewardGameToken(user.getUserID(), ipnft);
   console.log(`07 > rewarded game token`);
   // - kick player from tcp connection <GAME>
   user.setGodotPeer(null);

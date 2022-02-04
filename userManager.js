@@ -1,4 +1,4 @@
-const { allocateUser, syncUser, encodeKey } = require('./thetaConnector');
+const { allocateUser, syncUser, encodeKey, rewardGameToken, rewardPoints } = require('./nearConnector');
 const db = require('./dataManager');
 const log = require('./log');
 
@@ -26,7 +26,7 @@ const _createUser = (_sessionID) => {
   let sessionID = _sessionID; // temporal
   let userID = _sessionID;    // permanent
   let godotPeerID;            // temporal
-  let thetaAccount;           // permanent
+  let nearAccount;           // permanent
   let state = USER_STATE.CONNECTING;
   let encodedKey;             // permanent
   let turn=0;
@@ -73,7 +73,7 @@ const _createUser = (_sessionID) => {
     delete userIDs[userID];
     userID = _user.id;
     encodedKey = _user.password;
-    thetaAccount = _user.address;
+    nearAccount = _user.address;
     userIDs[userID] = sessionID;
     await syncUser(_self);
     return true;
@@ -99,12 +99,12 @@ const _createUser = (_sessionID) => {
   };
 
   const scorePoints = async (points) => {
-    await thetaConnector.rewardPoints(userID, points);
+    await rewardPoints(userID, points);
     score += points;
   };
 
   const awardGameToken = async (rewardId, ipnft) => {
-    await thetaConnector.rewardGameToken(userID, ipnft);
+    await rewardGameToken(userID, ipnft);
     achievements.push(rewardId);
   };
 
@@ -124,7 +124,7 @@ const _createUser = (_sessionID) => {
     getSessionID: _ => sessionID,
     getUserID: _ => userID,
     getGodotPeerID: _ => godotPeerID,
-    getThetaAccount: _ => thetaAccount,
+    getNearAccount: _ => nearAccount,
     getState: _ => state,
     getTurn: _ => turn,
     getAdn: _ => adn,
@@ -145,7 +145,7 @@ const _createUser = (_sessionID) => {
         sessionID,
         userID,
         godotPeerID,
-        thetaAccount,
+        nearAccount,
         state,
         turn,
         adn,
@@ -185,7 +185,7 @@ const isPlayerConnected = (sessionID) => {
   return user && user.getState() !== USER_STATE.CONNECTING;
 }
 // User
-// theta-account
+// near-account
 // userID
 // peerID
 // status = outline, playing, inline
@@ -202,13 +202,13 @@ const isPlayerConnected = (sessionID) => {
 // only active player can receive rewards -> token and points
 
 // allocate a user is the first step in player coordination/synchronization?
-// optional - users can link their theta account
+// optional - users can link their near account
   // it require to check if there is an existing userId for this user
   // if yes, 
 // join to the line
 
 // godot client flow require user allocation to connect to the server
-// theta account require user allocation to connect it
+// near account require user allocation to connect it
 
 module.exports = {
   init,

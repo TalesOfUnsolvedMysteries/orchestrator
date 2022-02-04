@@ -1,6 +1,6 @@
 
 require('dotenv').config();
-const thetaConnector = require('./thetaConnector');
+const blockchainConnector = require('./nearConnector');
 const userManager = require('./userManager');
 const lineManager = require('./lineManager');
 const gameManager = require('./gameManager');
@@ -23,7 +23,7 @@ let servingClients = false;
 const setup = async () => {
   await db.init();
   serverState = SERVER_STATE.SETTING_UP;
-  await thetaConnector.init();
+  await blockchainConnector.init();
   connectionManager.init();
   userManager.init();
   await lineManager.init(checkLine);
@@ -63,10 +63,10 @@ const checkLine = async () => {
 
 const checkServerStatus = () => {
   let ready = true;
-  ready &&= thetaConnector.isConnected();
+  ready &&= blockchainConnector.isConnected();
   console.log('\n========================================================================');
   log.info(`[NS] CHECKING STATUS:`);
-  log.info(`[TC] status=${ thetaConnector.isConnected() ? 'OK': 'FAIL' }`);
+  log.info(`[TC] status=${ blockchainConnector.isConnected() ? 'OK': 'FAIL' }`);
   ready &&= connectionManager.isStarted();
   log.info(`[CM] status=${ connectionManager.isStarted() ? 'OK': 'FAIL' }`);
   log.info(`[UM] status=OK`);

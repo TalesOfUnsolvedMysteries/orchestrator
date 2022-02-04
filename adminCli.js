@@ -7,9 +7,9 @@ program.version('0.1.0');
 let contract;
 const getContract = async () => {
   if (!contract) {
-    const thetaConnector = require('./thetaConnector');
-    await thetaConnector.init();
-    contract = thetaConnector.getContract();
+    const blockchainConnector = require('./nearConnector');
+    await blockchainConnector.init();
+    contract = blockchainConnector.getContract();
   }
   return contract;
 };

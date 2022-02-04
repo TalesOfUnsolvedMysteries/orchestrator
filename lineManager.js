@@ -1,4 +1,4 @@
-const thetaConnector = require('./thetaConnector');
+const blockchainConnector = require('./nearConnector');
 const userManager = require('./userManager');
 const { USER_STATE } = userManager;
 
@@ -18,7 +18,7 @@ const init = async (_onLineChange) => {
 };
 
 const syncLine = async () => {
-  const contract = thetaConnector.getContract();
+  const contract = blockchainConnector.getContract();
   log.info(`[LM] line syncronization... (wait)`);
   firstInLine = await contract.first_in_line();
   currentTurn = await contract.line_turn(firstInLine);
@@ -33,7 +33,7 @@ const peek = async () => {
   let userID = -1;
   if (line.length == 0) return userID;
   try {
-    userID = await thetaConnector.peek();
+    userID = await blockchainConnector.peek();
     log.warn(`[GM] ${ userID } removed from the line.`);
   } catch (e) {
     log.error(`[LM] error on line manager`);
@@ -57,7 +57,7 @@ const requestTurnFor = async (user) => {
       return;
     }
     userTurnRequests.push(userID);
-    const turn = await thetaConnector.addToLine(userID);
+    const turn = await blockchainConnector.addToLine(userID);
     log.info(`[LM] ${ userID } has the turn ${ turn }`);
     user.assignTurn(turn);
     await syncLine();
