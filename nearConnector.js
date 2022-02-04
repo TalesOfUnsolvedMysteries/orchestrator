@@ -1,11 +1,11 @@
-const { ethers, utils } = require('ethers');
+const { ethers } = require('ethers');
 const nearAPI = require('near-api-js');
 const log = require('./log');
 const signerAccountId = 'tbas.neuromancer.testnet';
 const contractName = 'tbas.neuromancer.testnet';
 
 const keyStore = new nearAPI.keyStores.UnencryptedFileSystemKeyStore(
-  '/home/agar3s/.near-credentials/'
+  process.env.CREDENTIALS_PATH
 );
 
 let _contract;
@@ -75,6 +75,7 @@ const connect = async () => {
         'getLine',
         'getUserId',
         'getGameConfig',
+        'getAccessory',
       ],
       // Change methods can modify the state.
       changeMethods: [

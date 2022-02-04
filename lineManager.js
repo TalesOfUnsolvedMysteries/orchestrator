@@ -20,9 +20,14 @@ const init = async (_onLineChange) => {
 const syncLine = async () => {
   const contract = blockchainConnector.getContract();
   log.info(`[LM] line syncronization... (wait)`);
-  firstInLine = await contract.first_in_line();
-  currentTurn = await contract.line_turn(firstInLine);
   line = await contract.getLine();
+  firstInLine = line[0] || 0;
+  
+  if (firstInLine != 0) {
+    const firstUser = await contract.getUserObject({userId: firstInLine});
+    currentTurn = firstUser.turn;
+  }
+
   log.info(`[LM] current line: [${ line.join('-') }]`);
   log.info(`[LM] current turn: ${ currentTurn }`);
   onLineChange();

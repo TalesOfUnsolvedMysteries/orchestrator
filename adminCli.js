@@ -29,10 +29,8 @@ const createCommand = (command, description, getMethod, setMethod) => {
           console.log(`current value: ${ _current_value.toString() }`);
         }
       } else {
-        const tx = await _contract[setMethod](value, { gasLimit: '500000'});
-        const receipt = await tx.wait();
-        console.log(`transaction executed hash: ${ receipt.transactionHash }`);
-        console.log(`gas used = ${ receipt.cumulativeGasUsed } at ${ receipt.effectiveGasPrice } price.`);
+        const res = await _contract[setMethod]({args: value});
+        console.log(`res: ${ res.toString() }`);
       }
     } catch (e) {
       if (value) {
@@ -50,10 +48,8 @@ program.command('peek')
 .action(async () => {
   try {
     const _contract = await getContract();
-    const tx = await _contract.peek({ gasLimit: '500000'});
-    const receipt = await tx.wait();
-    console.log(`transaction executed hash: ${ receipt.transactionHash }`);
-    console.log(`gas used = ${ receipt.cumulativeGasUsed } at ${ receipt.effectiveGasPrice } price.`);
+    const lastUser = await _contract.peek({args: {}});
+    console.log(`line peeked = ${ lastUser }.`);
   } catch (e) {
     console.error(e);
   }
@@ -66,14 +62,11 @@ program.command('premium_accessory <id> [price] [points]')
     const _contract = await getContract();
     const isGetCall = !price || !points;
     if (isGetCall) {
-      const _price = await _contract.accessories_prices(id, { gasLimit: '500000'});
-      const _points = await _contract.accessories_prices_points(id, { gasLimit: '500000'});
-      console.log(`Premium Accessory #${ id }: price= ${ _price } - points= ${ _points }`);
+      const accessory = await _contract.getAccessory({accessoryId: id});
+      console.log(`Accessory #${ id }:`);
+      console.log(accessory);
     } else {
-      const tx = await _contract.setPriceForAccessory(id, price, points, { gasLimit: '500000'});
-      const receipt = await tx.wait();
-      console.log(`transaction executed hash: ${ receipt.transactionHash }`);
-      console.log(`gas used = ${ receipt.cumulativeGasUsed } at ${ receipt.effectiveGasPrice } price.`);
+      await _contract.setPriceForAccessory({accessoryId: id, price, pointsPrice: points});
     }
   } catch (e) {
     if (!isGetCall) {
@@ -88,7 +81,7 @@ program.command('premium_accessory <id> [price] [points]')
 createCommand(
   'user_price [price]',
   'sets/gets the price to unlock a user',
-  'price_to_unlock_user',
+  null,
   'setPriceToUnlockUser'
 );
 
@@ -126,15 +119,6 @@ createCommand(
   undefined,
   'removeAccessoryForPublic'
 );
-
-/* for user
-createCommand(
-  'unlock_accessory <id>',
-  'removes an accesory public for everybody',
-  undefined,
-  'unlockAccessoryForUser'
-);
-*/
 
 
 
