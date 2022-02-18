@@ -51,24 +51,34 @@ const peek = async () => {
 const userTurnRequests = [];
 
 const requestTurnFor = async (user) => {
-  const { state, userID, sessionID } = user.asObject();
-  if (state === USER_STATE.CONNECTED || state === USER_STATE.OUTLINE) {
-    if (userID === sessionID) { // not allocated on blockchain
-      log.warn(`[LM] ${ sessionID } Can't join to line, request allocation for this player first`);
-      return;
-    }
-    if (userTurnRequests.indexOf(userID) !== -1) {
-      log.warn(`[LM] there is a request for turn by user: ${ userID } already in progress`);
-      return;
-    }
-    userTurnRequests.push(userID);
-    const turn = await blockchainConnector.addToLine(userID);
-    log.info(`[LM] ${ userID } has the turn ${ turn }`);
-    user.assignTurn(turn);
-    await syncLine();
-    const index = userTurnRequests.indexOf(userID);
-    userTurnRequests.splice(index, 1);
+  const { state, userID, sessionID, turn } = user.asObject();
+  console.log('request turn');
+  console.log(state);
+  console.log(userID);
+  console.log(sessionID);
+  console.log(turn);
+
+  //if (state === USER_STATE.CONNECTED || state === USER_STATE.OUTLINE) {
+  if (userID === sessionID) { // not allocated on blockchain
+    log.warn(`[LM] ${ sessionID } Can't join to line, request allocation for this player first`);
+    return;
   }
+  if (turn > 0) {
+    log.warn(`[LM] ${ sessionID } This user already has a turn assigned: ${ turn }`);
+    return;
+  }
+  if (userTurnRequests.indexOf(userID) !== -1) {
+    log.warn(`[LM] there is a request for turn by user: ${ userID } already in progress`);
+    return;
+  }
+  userTurnRequests.push(userID);
+  const newTurn = await blockchainConnector.addToLine(userID);
+  log.info(`[LM] ${ userID } has the turn ${ newTurn }`);
+  user.assignTurn(newTurn);
+  await syncLine();
+  const index = userTurnRequests.indexOf(userID);
+  userTurnRequests.splice(index, 1);
+  //}
 };
 
 const getFirstInLine = () => {

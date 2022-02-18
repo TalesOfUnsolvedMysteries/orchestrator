@@ -12,6 +12,7 @@ const USER_STATE = {
   CONNECTED: 1,
   INLINE: 2,
   BUSY: 3,
+  WAITING_FOR_CONNECTION: 5,
   READY_TO_PLAY: 4,
   PLAYING: 5,
   OUTLINE: 6,
@@ -26,10 +27,11 @@ const _createUser = (_sessionID) => {
   let sessionID = _sessionID; // temporal
   let userID = _sessionID;    // permanent
   let godotPeerID;            // temporal
-  let nearAccount;           // permanent
+  let nearAccount;            // permanent
   let state = USER_STATE.CONNECTING;
   let encodedKey;             // permanent
   let turn=0;
+  let secretKey;              // temporal
   
   let adn;
   let bugName;
@@ -134,10 +136,13 @@ const _createUser = (_sessionID) => {
     getLastWords: _ => lastWords,
     getScore: _ => score,
     getAchievements: _ => achievements,
+    getSecretKey: _ => secretKey,
+    setState: _state => state = _state,
     setAdn,
     setBugName: _bugName => bugName = _bugName,
     setIntroWords: _introWords => introWords = _introWords,
     setLastWords: _lastWords => lastWords = _lastWords,
+    setSecretKey: _secretKey => secretKey = _secretKey,
     scorePoints,
     awardGameToken,
     asObject: _ => {

@@ -7,18 +7,22 @@ const nftManager = require('./nftManager');
 const blockchainConnector = require('./nearConnector');
 const lineManager = require('./lineManager');
 
-let connectionManager;
+//let connectionManager;
 let stateChangeListener;
+let secretConnectionKey;
 
 const GAME_STATE = {
   OFFLINE: 0,
   CONNECTING: 1,
   READY: 2,
-  PLAYING: 3,
-  BUSY: 4
+  CONNECTING_PLAYER: 3,
+  ASSIGNING_PILOT: 4,
+  GENERATING_CARD: 5,
+  PLAYING: 6,
+  BUSY: 7
 }
 
-const GAME_STATE_NAME = ['OFFLINE', 'CONNECTING', 'READY', 'PLAYING', 'BUSY'];
+const GAME_STATE_NAME = Object.keys(GAME_STATE);
 let state;
 let gameServerSocket;
 
@@ -27,13 +31,13 @@ let currentPlayer;
 
 const pendingConnections = {};
 
-let onMessageConfirmation = _ => _;
-let onPilotReady = _ => _;
+let _onMessageConfirmation = _ => _;
+let _onPilotReady = _ => _;
 
-const init = (_connectionManager, _stateChangeListener) => {
+const init = (_stateChangeListener) => {
   log.info(`[GM] Game Manager - initialization`);
   setState(GAME_STATE.OFFLINE);
-  connectionManager = _connectionManager;
+  //connectionManager = _connectionManager;
   stateChangeListener = _stateChangeListener;
 };
 
@@ -45,6 +49,7 @@ const servePlayer = async (user) => {
   // check player is connected tcp
   let godotPeerID = user.getGodotPeerID();
   console.log('godot peer id', godotPeerID);
+  user.setState(userManager.USER_STATE.WAITING_FOR_CONNECTION);
   if (!godotPeerID || godotPeerID==-1) {
     console.log('going to request connection');
     const isConnected = await requestClientConnection(user);
@@ -62,23 +67,25 @@ const servePlayer = async (user) => {
   
   // ask player to take control of the game
   log.warn(`[GM] request to pilot`);
-  gameServerSocket.send(`gs_assignPilot:${ godotPeerID }`);
+  setState(GAME_STATE.ASSIGNING_PILOT);
+  //gameServerSocket.send(`gs_assignPilot:${ godotPeerID }`);
   // verify player is controlling the game?
   log.warn(`[GM] waiting for pilot's confirmation`);
   const pilotEngage = await new Promise((resolve) => {
     let solved = false;
-    onPilotReady = (connected) => {
+    _onPilotReady = (connected) => {
+      console.log('called in the promise');
       solved = true;
       resolve(connected);
     };
     /*setTimeout(() => {
       if (solved) return;
       log.warn(`[GM] pilot's timeout`);
-      onPilotReady = _ => _;
+      _onPilotReady = _ => _;
       resolve(false);
     }, 60000);*/
   });
-  onPilotReady = _ => _;
+  _onPilotReady = _ => _;
   if (!pilotEngage) {
     log.warn(`[GM] Pilot disconnected`);
     setState(GAME_STATE.READY);
@@ -117,7 +124,7 @@ const gameOver = async (peerID, deathCause) => {
     obsConnector.stopRecording();
     currentPlayer = -1;
     setState(GAME_STATE.READY);
-    gameServerSocket.send(`gs_gotomenu:1`);
+    //gameServerSocket.send(`gs_gotomenu:1`);
     await lineManager.peek();
     return;
   }
@@ -144,12 +151,13 @@ const gameOver = async (peerID, deathCause) => {
   // -wait until card is generated
   console.log(`03 > save image`);
   const imageFile = await new Promise((resolve) => {
-    onMessageConfirmation = (message, data) => {
+    _onMessageConfirmation = (message, data) => {
       console.log(message, data);
       if (message == 'gs_cardGenerated') resolve(data);
     };
     console.log(`04 > generate card`);
-    gameServerSocket.send(`gs_generateCard:p_${ user.getTurn() }`);
+    setState(GAME_STATE.GENERATING_CARD);
+    //gameServerSocket.send(`gs_generateCard:p_${ user.getTurn() }`);
   });
   console.log(`05 > image file ${ imageFile }`);
 
@@ -179,11 +187,17 @@ const requestClientConnection = async (user) => {
   pendingConnections[secretKey] = user.asObject();
   const isConnected = await new Promise((resolve) => {
     console.log('sending connection?');
-    gameServerSocket.send(`gs_waitForConnection:${ secretKey }`);
+    setState(GAME_STATE.CONNECTING_PLAYER);
+    secretConnectionKey = secretKey;
+    // gameServerSocket.send(`gs_waitForConnection:${ secretKey }`);
+    user.setSecretKey(secretKey);
     let _count = 0;
     const _checkUserStatus = () => {
-      if (_count >= 20) { // 10 seconds
+      if (_count >= 60) { // 30 seconds
         delete pendingConnections[secretKey];
+        secretConnectionKey = uuidv4().replace(/\-/g, '');
+        user.setSecretKey('');
+        user.gameOver('not ready to play');
         return resolve(false);
       }
       if (!user.getGodotPeerID() || user.getGodotPeerID()==-1) {
@@ -209,14 +223,14 @@ const rewardGameToken = async (user, rewardId) => {
   await user.awardGameToken(rewardId, ipnft);
 };
 
-const registerServer = (websocketClient) => {
-  gameServerSocket = websocketClient;
-  gameServerSocket.isGameServer = true;
-  setState(GAME_STATE.CONNECTING);
-  gameServerSocket.send('gs_connected:1');
-  gameServerSocket.on('close', () => {
-    setState(GAME_STATE.OFFLINE);
-  });
+const registerServer = (sessionID) => {
+  //gameServerSocket = websocketClient;
+  //gameServerSocket.isGameServer = true;
+  setState(GAME_STATE.READY);
+  //gameServerSocket.send('gs_connected:1');
+  //gameServerSocket.on('close', () => {
+  //  setState(GAME_STATE.OFFLINE);
+  //});
 }
 
 const setState = (newState) => {
@@ -227,12 +241,32 @@ const setState = (newState) => {
   }
 }
 
+const registerPlayerConnection = (secret, godotPeerID) => {
+  log.info(`[GM] client=${ godotPeerID } connection success`);
+  const pendingConnection = pendingConnections[secret];
+  if (!pendingConnection) {
+    log.warn(`[GM] client=${ godotPeerID } connection not found in pending connections. should remove it?`);
+  } else {
+    const { sessionID } = pendingConnection;
+    const user = userManager.getUser(sessionID);
+    user.setGodotPeer(godotPeerID);
+    delete pendingConnection[secret];
+    log.info(`[GM] client=${ godotPeerID } associated to userID=${ user.getUserID() }`);
+  }
+};
+
+const handlePlayerDisconnection = (godotPeerId) => {
+  console.log('player disconnected', godotPeerId);
+  const user = userManager.getUserByGodotPeerID(godotPeerId);
+  user && user.setGodotPeer(null);
+  // handle player disconnection?
+  if (currentPlayer == godotPeerId) {
+    _onPilotReady(false);
+  }
+}
+/*
 const handleCommand = async (command, data) => {
   switch(command) {
-    case 'gs_ready':
-      log.info('[GM] Game Server is ready');
-      setState(GAME_STATE.READY);
-    break;
     case 'gs_waitingConnection': {
       const { sessionID } = pendingConnections[data];
       connectionManager.sendMessageTo(sessionID, `gc_connect:${ data }`);
@@ -242,40 +276,27 @@ const handleCommand = async (command, data) => {
       // handle failed connection
       const { sessionID } = pendingConnections[data];
       log.warn(`[GM] Game Server Connection fails for ${ sessionID }`);
+      // deprecated
     }
     break;
     case 'gs_connectionSuccess': {
       const [secret, godotPeerID] = data.split('-');
-      log.info(`[GM] client=${ godotPeerID } connection success`);
-      const pendingConnection = pendingConnections[secret];
-      if (!pendingConnection) {
-        log.warn(`[GM] client=${ godotPeerID } connection not found in pending connections. should remove it?`);
-      } else {
-        const { sessionID } = pendingConnection;
-        const user = userManager.getUser(sessionID);
-        user.setGodotPeer(godotPeerID);
-        delete pendingConnection[secret];
-        log.info(`[GM] client=${ godotPeerID } associated to userID=${ user.getUserID() }`);
-      }
+      /// deprecated
     }
     break;
     case 'gs_cardGenerated': {
-      onMessageConfirmation(command, data);
+      _onMessageConfirmation(command, data);
+      /// deprecated
     }
     break;
     case 'gs_gameOver': {
       const [peerId, causeOfDeath] = data.split('-');
       gameOver(peerId, causeOfDeath);
+      /// deprecated
     }
     break;
     case 'gs_player_disconnected': {
-      console.log('player disconnected', data);
-      const user = userManager.getUserByGodotPeerID(data);
-      user && user.setGodotPeer(null);
-      // handle player disconnection?
-      if (currentPlayer == data) {
-        onPilotReady(false);
-      }
+      //handlePlayerDisconnection()
     }
     break;
     case 'gs_player_score': {
@@ -289,11 +310,11 @@ const handleCommand = async (command, data) => {
     }
     break;
     case 'gs_pilotReady': {
-      onPilotReady(true);
+      _onPilotReady(true);
     }
     break;
   }
-}
+}*/
 
 
 module.exports = {
@@ -301,8 +322,17 @@ module.exports = {
   GAME_STATE_NAME,
   init,
   registerServer,
-  handleCommand,
+  //handleCommand,
   servePlayer,
   setupNextPlayer,
-  getState: () => state
+  getCurrentPlayer: () => currentPlayer,
+  getSecretConnectionKey: () => secretConnectionKey,
+  registerPlayerConnection,
+  getState: () => state,
+  gameOver,
+  handlePlayerDisconnection,
+  rewardPoints,
+  rewardGameToken,
+  onPilotReady: (ready) => _onPilotReady(ready),
+  onMessageConfirmation: (msg, filename) => _onMessageConfirmation(msg, filename)
 };
