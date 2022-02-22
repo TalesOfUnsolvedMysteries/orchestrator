@@ -1,8 +1,8 @@
 const { ethers } = require('ethers');
 const nearAPI = require('near-api-js');
 const log = require('./log');
-const signerAccountId = 'tbas.neuromancer.testnet';
-const contractName = 'tbas.neuromancer.testnet';
+const signerAccountId = process.env.CONTRACT_NAME;
+const contractName = process.env.SIGNEAR_ACCOUNT;
 
 const keyStore = new nearAPI.keyStores.UnencryptedFileSystemKeyStore(
   process.env.CREDENTIALS_PATH
@@ -27,7 +27,7 @@ const networkConfig = {
   mainnet: {
     networkId: 'mainnet',
     nodeUrl: 'https://rpc.mainnet.near.org',
-    contractName: 'tbas.neuromancer',
+    contractName,
     walletUrl: 'https://wallet.near.org',
     helperUrl: 'https://helper.mainnet.near.org',
     explorerUrl: 'https://explorer.mainnet.near.org',
@@ -35,17 +35,10 @@ const networkConfig = {
   testnet: {
     networkId: 'testnet',
     nodeUrl: 'https://rpc.testnet.near.org',
-    contractName: 'tbas.neuromancer.testnet',
+    contractName,
     walletUrl: 'https://wallet.testnet.near.org',
     helperUrl: 'https://helper.testnet.near.org',
     explorerUrl: 'https://explorer.testnet.near.org',
-  },
-  local: {
-    networkId: 'local',
-    nodeUrl: 'http://localhost:3030',
-    keyPath: `${process.env.HOME}/.near/validator_key.json`,
-    walletUrl: 'http://localhost:4000/wallet',
-    contractName: 'tbas.neuromancer.testnet',
   }
 }
 
@@ -134,9 +127,14 @@ const syncUser = async (user) => {
 const addToLine = async (userId) => {
   if (!_contract) throw Error('not connected to Near network');
   log.info(`[TC] >> Blockchain requesting turn for user: ${ userId } - (wait)`);
-  const turn = await _contract.addToLine({ args: { userId } });
-  log.info(`[TC] Blockchain user ${ userId } got turn: ${ turn } <<`);
-  return turn;
+  try {
+    const turn = await _contract.addToLine({ args: { userId } });
+    log.info(`[TC] Blockchain user ${ userId } got turn: ${ turn } <<`);
+    return turn;
+  } catch (error) {
+    console.error(error);
+    return -1;
+  }
 };
 
 const peek = async () => {
