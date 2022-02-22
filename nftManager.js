@@ -25,8 +25,8 @@ const generateNFT = async (user, imageFile, videoId) => {
   const [sideA, sideB] = await generateMedia(imageFile);
   const { adn, bugName, deathCause, introWords, lastWords, turn, score, achievements } = user.asObject();
   const metadata = await client.store({
-    name: `The Big Adventure Show (Pilot) - Participant #${ turn } Record Card`,
-    description: `Big Adventure Show Souvenir Card for Participant #${ turn } - Pilot`,
+    name: `Tales of Unsolved Mysteries - Participant #${ turn } Record Card`,
+    description: `Tales of Unsolved Mysteries Memory Card for Participant #${ turn } - Pilot`,
     image: new File([await fs.promises.readFile(sideA)],
       `BAS_Pilot_${ turn }A.png`,
       { type: 'image/png' }
