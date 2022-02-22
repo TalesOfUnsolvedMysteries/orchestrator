@@ -78,6 +78,30 @@ program.command('premium_accessory <id> [price] [points]')
   }
 });
 
+program.command('stats')
+.description('sets the price for a premium accesory')
+.action(async (max_value) => {
+  try {
+    const _contract = await getContract();
+    const res = await _contract.getGameConfig({});
+    console.log(res);
+  } catch (e) {
+    console.error(e);
+  }
+});
+
+program.command('set_max_line [max_value]')
+.description('sets the price for a premium accesory')
+.action(async (max_value) => {
+  try {
+    const _contract = await getContract();
+    await _contract.setMaxLineCapacity({maxLineCapacity: parseInt(max_value)});
+  } catch (e) {
+    let reason = e.code !== 'SERVER_ERROR' ? e.reason : JSON.parse(e.body)['error']['message'];
+    console.log(`setting price error[${ e.code }]: ${ reason } ${ price } - ${ points }`);
+  }
+});
+
 createCommand(
   'user_price [price]',
   'sets/gets the price to unlock a user',
