@@ -1,4 +1,11 @@
-const { allocateUser, syncUser, encodeKey, rewardGameToken, rewardPoints } = require('./nearConnector');
+const {
+  allocateUser,
+  syncUser,
+  encodeKey,
+  rewardGameToken,
+  rewardPoints,
+  setUserOwnership,
+} = require('./nearConnector');
 const db = require('./dataManager');
 const log = require('./log');
 
@@ -124,6 +131,18 @@ const _createUser = (_sessionID) => {
     await db.saveCharacter(userID, adn, bugName);
   };
 
+  const setNearAccount = async (accountId, secret) => {
+    try {
+      await setUserOwnership(userID, accountId, secret);
+      nearAccount = accountId;
+      await db.updateUser(userID, accountId);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  };
+
   const _self = {
     ackConnection,
     allocateOnBlockchain,
@@ -150,6 +169,7 @@ const _createUser = (_sessionID) => {
     setIntroWords: _introWords => introWords = _introWords,
     setLastWords: _lastWords => lastWords = _lastWords,
     setSecretKey: _secretKey => secretKey = _secretKey,
+    setNearAccount,
     scorePoints,
     awardGameToken,
     asObject: _ => {

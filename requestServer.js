@@ -200,6 +200,13 @@ app.get('/user/sync-state', (req, res) => {
   res.json(response);
 });
 
+app.post('/user/near-credentials', async (req, res) => {
+  const { accountId, secret } = req.body;
+  const { user } = res.locals;
+  const assigned = await user.setNearAccount(accountId, secret);
+  res.status(200).json({assigned});
+});
+
 const startServer = () => {
   app.listen(port, '0.0.0.0', () => {
     console.log(`Example app listening on port ${ port }!`)

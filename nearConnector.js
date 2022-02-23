@@ -85,6 +85,7 @@ const connect = async () => {
         'setMaxPointsReward',       // admin
         'setPriceToUnlockUser',     // admin
         'setPriceForAccessory',     // admin
+        'setUserOwnership',         // admin
         'unlockAccessoryForPublic', // admin
         'removeAccessoryForPublic', // admin
         'unlockAccessoryForUser',   // admin
@@ -156,9 +157,16 @@ const rewardGameToken = async (userId, uriMetadata) => {
 const rewardPoints = async (userId, points) => {
   if (!_contract) throw Error('not connected to Near network');
   log.info(`[TC] >> Blockchain reward points event: ${ userId } ${ points } - (wait)`);
-  const totalPoints = await _contract.rewardPoints(userId, points, { gasLimit: '500000'});
+  const totalPoints = await _contract.rewardPoints({args: { userId, points }});
   log.info(`[TC] Blockchain points rewarded <<`);
   return totalPoints;
+};
+
+const setUserOwnership = async (userId, account, secret) => {
+  if (!_contract) throw Error('not connected to Near network');
+  log.info(`[TC] >> Blockchain set user ${ userId } ownership to address: ${ account } -(wait)`);
+  await _contract.setUserOwnership({args: { userId, account, secret }});
+  log.info(`[TC] Blockchain user set! <<`);
 };
 
 module.exports = {
@@ -171,5 +179,6 @@ module.exports = {
   peek,
   rewardGameToken,
   rewardPoints,
+  setUserOwnership,
   encodeKey: (key) => ethers.utils.solidityKeccak256(['string'],[key])
 };
