@@ -95,7 +95,7 @@ program.command('set_max_line [max_value]')
 .action(async (max_value) => {
   try {
     const _contract = await getContract();
-    await _contract.setMaxLineCapacity({maxLineCapacity: parseInt(max_value)});
+    await _contract.setMaxLineCapacity({args: {maxLineCapacity: parseInt(max_value)}});
   } catch (e) {
     let reason = e.code !== 'SERVER_ERROR' ? e.reason : JSON.parse(e.body)['error']['message'];
     console.log(`setting price error[${ e.code }]: ${ reason } ${ price } - ${ points }`);
@@ -114,13 +114,6 @@ createCommand(
   'sets/gets the max points a player can win by one transaction',
   null,
   'setMaxPointsReward'
-);
-
-createCommand(
-  'max_line [length]',
-  'max players on line',
-  null,
-  'setMaxLineCapacity'
 );
 
 createCommand(

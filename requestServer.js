@@ -15,13 +15,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: 'keyboard cat',
+  secret: process.env.SECRET_SESSION_KEY,
   resave: false,
   saveUninitialized: true
 }));
 
 app.use((req, res, next) => {
-  console.log(req.originalUrl);
   if (req.session.isServer) {
     return next();
   }
@@ -64,19 +63,15 @@ app.get('/server/status', (req, res) => {
 
 app.post('/server/register', (req, res) => {
   const { secret } = req.body;
-  console.log('trying to register server');
-  console.log(secret);
   if (res.locals.gameState !== gameManager.GAME_STATE.OFFLINE) {
     console.log('401 server already connected');
     return res.status(401).json({error: 'server already connected'});
   }
   if (secret === process.env.SECRET_GAME_KEY) {
-    console.log('connected ok cool?');
     gameManager.registerServer(req.sessionID);
     req.session.isServer = true;
     return res.json({connected: true});
   }
-  console.log('bad key');
   res.status(401).json({error: 'bad key'});
 });
 
@@ -171,17 +166,10 @@ app.post('/user/request-turn', async (req, res) => {
   res.json({ turn });
 });
 
-app.post('/user/bug/adn', (req, res) => {
-  const { adn } = req.body;
+app.post('/user/bug', (req, res) => {
+  const { adn, name } = req.body;
   const { user } = res.locals;
-  user.setAdn(adn);
-  res.status(200).json({});
-});
-
-app.post('/user/bug/name', (req, res) => {
-  const { name } = req.body;
-  const { user } = res.locals;
-  user.setBugName(name);
+  user.setBug(adn, name);
   res.status(200).json({});
 });
 
@@ -199,14 +187,18 @@ app.post('/user/bug/last', (req, res) => {
   res.status(200).json({});
 });
 
-app.get('/user/can-connect', (req, res) => {
-  const { user } = res.locals;
-  res.json({
-    canConnect: user.getState() === USER_STATE.WAITING_FOR_CONNECTION,
-    secretKey: user.getSecretKey()
-  });
-});
 
+app.get('/user/sync-state', (req, res) => {
+  const { user } = res.locals;
+  const response = {
+    canConnect: user.getState() === USER_STATE.WAITING_FOR_CONNECTION,
+    user: user.asObject()
+  };
+  if (response.canConnect) {
+    response.secretKey = user.getSecretKey();
+  }
+  res.json(response);
+});
 
 const startServer = () => {
   app.listen(port, '0.0.0.0', () => {

@@ -13,9 +13,19 @@ const saveUser = async (userID, password) => {
     id: userID,
     password,
     address: null,
+    char: {
+      adn: null,
+      name: null,
+    },
   }
   db.push(`/users/${ userID }`, user);
 };
+
+const saveCharacter = async (userID, adn, name) => {
+  const user = db.getData(`/users/${ userID }`);
+  user.char = { adn, name };
+  db.push(`/users/${ userID }`, user);
+}
 
 const updateUser = async (userID, address) => {
   const user = db.getData(`/users/${ userID }`);
@@ -38,6 +48,7 @@ module.exports = {
   init,
   saveUser,
   getUser,
-  updateUser
+  updateUser,
+  saveCharacter,
 };
 

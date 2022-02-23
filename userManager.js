@@ -76,6 +76,8 @@ const _createUser = (_sessionID) => {
     userID = _user.id;
     encodedKey = _user.password;
     nearAccount = _user.address;
+    adn = _user.char.adn;
+    bugName = _user.char.name;
     userIDs[userID] = sessionID;
     await syncUser(_self);
     return true;
@@ -116,6 +118,12 @@ const _createUser = (_sessionID) => {
     deathCause = _deathCause
   };
 
+  const setBug = async (_adn, _name) => {
+    adn = _adn;
+    bugName = _name;
+    await db.saveCharacter(userID, adn, bugName);
+  };
+
   const _self = {
     ackConnection,
     allocateOnBlockchain,
@@ -138,8 +146,7 @@ const _createUser = (_sessionID) => {
     getAchievements: _ => achievements,
     getSecretKey: _ => secretKey,
     setState: _state => state = _state,
-    setAdn,
-    setBugName: _bugName => bugName = _bugName,
+    setBug,
     setIntroWords: _introWords => introWords = _introWords,
     setLastWords: _lastWords => lastWords = _lastWords,
     setSecretKey: _secretKey => secretKey = _secretKey,

@@ -75,6 +75,8 @@ const requestTurnFor = async (user) => {
   const newTurn = await blockchainConnector.addToLine(userID);
   if (newTurn < 0) {
     log.warn(`[LM] ${ sessionID } Exception for this player`);
+    const index = userTurnRequests.indexOf(userID);
+    userTurnRequests.splice(index, 1);
     return;
   }
   log.info(`[LM] ${ userID } has the turn ${ newTurn }`);
