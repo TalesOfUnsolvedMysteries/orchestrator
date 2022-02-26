@@ -12,13 +12,13 @@ let _contract;
 let connected = false;
 
 const init = async () => {
-  log.info(`[TC] Near Connector - initialization`);
+  log.info(`[Ⓝ] Near Connector - initialization`);
   try {
     await connect();
     connected = true;
-    log.info(`[TC] Near connection successful`);
+    log.info(`[Ⓝ] Near connection successful`);
   } catch(e) {
-    log.error('[TC] error on connection');
+    log.error('[Ⓝ] error on connection');
     log.error(e);
   }
 };
@@ -72,6 +72,7 @@ const connect = async () => {
       ],
       // Change methods can modify the state.
       changeMethods: [
+        'init',
         'buyAccessory',             // user - payable
         'takeUserOwnership',
         'addToLine',                // admin
@@ -89,6 +90,7 @@ const connect = async () => {
         'unlockAccessoryForPublic', // admin
         'removeAccessoryForPublic', // admin
         'unlockAccessoryForUser',   // admin
+        'nft_mint',
       ],
     }
   );
@@ -98,9 +100,28 @@ const getContract = () => {
   return _contract;
 }
 
+const initContract = async () => {
+  if (!_contract) throw Error('not connected to near platform');
+  log.info(`[Ⓝ] >> Initializating metadata for NFTs - (wait)`);
+  await _contract.init({
+    args: {
+      metadata: {
+        spec: 'toum-0.0.0',
+        name: 'Unsolved Mysteries',
+        symbol: 'ToUM',
+        icon: 'https://js13kgames.com/games/spaceship-wars-13k/__small.jpg',
+        base_uri: '',
+        reference: 'https://bafybeiejdg3z267rzcpnniirmmi5h3n3ku2fs4f5g6rmjeh2wpdvfcotxq.ipfs.dweb.link/',
+        reference_hash: '',
+      },
+    }
+  });
+  log.info(`[Ⓝ] >> contract initializated`);
+};
+
 const allocateUser = async (sessionID, secretWord) => {
   if (!_contract) throw Error('not connected to near platform');
-  log.info(`[TC] >> Blockchain allocating user for session: ${ sessionID } - (wait)`);
+  log.info(`[Ⓝ] >> Blockchain allocating user for session: ${ sessionID } - (wait)`);
   const encodedKey = ethers.utils.solidityKeccak256(['string'],[secretWord]);
   const userID = await _contract.allocateUser({
     args: {
@@ -108,29 +129,29 @@ const allocateUser = async (sessionID, secretWord) => {
       unlockKey: encodedKey
     }
   });
-  log.info(`[TC] user allocated: ${ userID } <<`);
+  log.info(`[Ⓝ] user allocated: ${ userID } <<`);
   return { userID, encodedKey };
 };
 
 const syncUser = async (user) => {
   if (!_contract) throw Error('not connected to Near network');
   const userId = user.getUserID();
-  log.info(`[TC] >> Blockchain syncing user: ${ userId } - (wait)`);
+  log.info(`[Ⓝ] >> Blockchain syncing user: ${ userId } - (wait)`);
   const { turn } = await _contract.getUserObject({ userId });
   if (turn > 0) {
-    log.info(`[TC] Blockchain user ${ userId } has turn: ${ turn } <<`);
+    log.info(`[Ⓝ] Blockchain user ${ userId } has turn: ${ turn } <<`);
     user.assignTurn(turn);
   } else {
-    log.info(`[TC] Blockchain user ${ userId } doesn't have turn assigned <<`);
+    log.info(`[Ⓝ] Blockchain user ${ userId } doesn't have turn assigned <<`);
   }
 };
 
 const addToLine = async (userId) => {
   if (!_contract) throw Error('not connected to Near network');
-  log.info(`[TC] >> Blockchain requesting turn for user: ${ userId } - (wait)`);
+  log.info(`[Ⓝ] >> Blockchain requesting turn for user: ${ userId } - (wait)`);
   try {
     const turn = await _contract.addToLine({ args: { userId } });
-    log.info(`[TC] Blockchain user ${ userId } got turn: ${ turn } <<`);
+    log.info(`[Ⓝ] Blockchain user ${ userId } got turn: ${ turn } <<`);
     return turn;
   } catch (error) {
     console.error(error);
@@ -140,37 +161,42 @@ const addToLine = async (userId) => {
 
 const peek = async () => {
   if (!_contract) throw Error('not connected to near platform');
-  log.info(`[TC] >> Blockchain line peek requested - (wait)`);
+  log.info(`[Ⓝ] >> Blockchain line peek requested - (wait)`);
   const removedUserId = await _contract.peek({ args: {} });
-  log.info(`[TC] Blockchain first user in line removed <<`);
+  log.info(`[Ⓝ] Blockchain first user in line removed <<`);
   return removedUserId;
 };
 
-const rewardGameToken = async (userId, uriMetadata) => {
+const rewardGameToken = async (userId, metadata) => {
   if (!_contract) throw Error('not connected to Near network');
-  log.info(`[TC] >> Blockchain tokenRewarded event: ${ userId } ${ uriMetadata } - (wait)`);
-  const tokenReward = await _contract.rewardGameToken({ args: { userId, uriMetadata }});
-  log.info(`[TC] Blockchain tokenRewarded <<`);
-  return tokenReward;
+  log.info(`[Ⓝ] >> Blockchain tokenRewarded event: ${ userId } ${ metadata.reference } - (wait)`);
+  const tokenRewardId = await _contract.rewardGameToken({ args: { userId, metadata }});
+  const user = await _contract.getUserObject({ userId });
+  if (user.nearAccount) {
+    await _contract.nft_mint({ args: { receiver_id: user.nearAccount, token_id: tokenRewardId.toString(), metadata }});
+  }
+  log.info(`[Ⓝ] Blockchain tokenRewarded <<`);
+  return tokenRewardId;
 };
 
 const rewardPoints = async (userId, points) => {
   if (!_contract) throw Error('not connected to Near network');
-  log.info(`[TC] >> Blockchain reward points event: ${ userId } ${ points } - (wait)`);
+  log.info(`[Ⓝ] >> Blockchain reward points event: ${ userId } ${ points } - (wait)`);
   const totalPoints = await _contract.rewardPoints({args: { userId, points }});
-  log.info(`[TC] Blockchain points rewarded <<`);
+  log.info(`[Ⓝ] Blockchain points rewarded <<`);
   return totalPoints;
 };
 
 const setUserOwnership = async (userId, account, secret) => {
   if (!_contract) throw Error('not connected to Near network');
-  log.info(`[TC] >> Blockchain set user ${ userId } ownership to address: ${ account } -(wait)`);
+  log.info(`[Ⓝ] >> Blockchain set user ${ userId } ownership to address: ${ account } -(wait)`);
   await _contract.setUserOwnership({args: { userId, account, secret }});
-  log.info(`[TC] Blockchain user set! <<`);
+  log.info(`[Ⓝ] Blockchain user set! <<`);
 };
 
 module.exports = {
   init,
+  initContract,
   isConnected: () => connected,
   getContract,
   allocateUser,

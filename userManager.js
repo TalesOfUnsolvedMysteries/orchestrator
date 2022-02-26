@@ -121,7 +121,6 @@ const _createUser = (_sessionID) => {
 
   const gameOver = async (_deathCause) => {
     state = USER_STATE.OUTLINE;
-    turn = 0;
     deathCause = _deathCause
   };
 
@@ -169,6 +168,7 @@ const _createUser = (_sessionID) => {
     setIntroWords: _introWords => introWords = _introWords,
     setLastWords: _lastWords => lastWords = _lastWords,
     setSecretKey: _secretKey => secretKey = _secretKey,
+    setTurn: _turn => turn = _turn,
     setNearAccount,
     scorePoints,
     awardGameToken,

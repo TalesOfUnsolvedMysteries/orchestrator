@@ -19,13 +19,29 @@ const generateMedia = async (file) => {
   return sides;
 };
 
+const getComplementaryMetadata = (metadata) => {
+  return {
+    title: metadata.data.name,
+    description: metadata.data.description,
+    media: metadata.data.image.hostname + metadata.data.image.pathname,
+    media_hash: '',
+    copies: '1',
+    issued_at: '',
+    expires_at: '',
+    starts_at: '',
+    updated_at: '',
+    extra: '',
+    reference: metadata.ipnft+'/metadata.json',
+    reference_hash: ''
+  };
+};
 
 const generateNFT = async (user, imageFile, videoId) => {
   log.info(`[NFT] generating and storing souvenir NFT.`);
   const [sideA, sideB] = await generateMedia(imageFile);
   const { adn, bugName, deathCause, introWords, lastWords, turn, score, achievements } = user.asObject();
-  const metadata = await client.store({
-    name: `Tales of Unsolved Mysteries - Participant #${ turn } Record Card`,
+  const fullMetadata = await client.store({
+    name: `Participant #${ turn } Memory Card`,
     description: `Tales of Unsolved Mysteries Memory Card for Participant #${ turn } - Pilot`,
     image: new File([await fs.promises.readFile(sideA)],
       `BAS_Pilot_${ turn }A.png`,
@@ -49,9 +65,14 @@ const generateNFT = async (user, imageFile, videoId) => {
       season: 'pilot'
     }
   });
-  console.log(metadata.embed());
-  log.info(`[NFT] NFT generated ipnft: ${ metadata.ipnft }.`);
-  return metadata.ipnft;
+  console.log(fullMetadata);
+  console.log(fullMetadata?.data);
+  console.log(fullMetadata?.data?.image);
+  const metadataObj = fullMetadata.embed();
+  console.log(metadataObj);
+  log.info(`[NFT] NFT generated ipnft: ${ fullMetadata.ipnft }.`);
+  
+  return getComplementaryMetadata(fullMetadata);
 };
 
 const allocateRewardToken = async (rewardId) => {
@@ -59,7 +80,8 @@ const allocateRewardToken = async (rewardId) => {
   const reward = rewards[rewardId];
   reward.image = new File([await fs.promises.readFile(reward.image.file)], reward.name, {type: 'image/png'});
   const metadata = await client.store(reward);
-  return metadata.ipnft;
+  const metadataObj = metadata.embed();
+  return getComplementaryMetadata(metadata);
 };
 
 module.exports = {

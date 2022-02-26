@@ -24,7 +24,6 @@ const GAME_STATE = {
 
 const GAME_STATE_NAME = Object.keys(GAME_STATE);
 let state;
-let gameServerSocket;
 
 // required connections
 let currentPlayer;
@@ -163,13 +162,16 @@ const gameOver = async (peerID, deathCause) => {
 
   // - split image in two
   // - save NFT on storage -> when video is uploaded and images generated
-  const ipnft = await nftManager.generateNFT(user, imageFile, videoId);
-  console.log(`06 > ipnft ${ ipnft }`);
+  const nftMetadata = await nftManager.generateNFT(user, imageFile, videoId);
+  console.log(`06 > ipnft ${ nftMetadata.reference }`);
   // - create a reward for player with NFT metadata id
-  await blockchainConnector.rewardGameToken(user.getUserID(), ipnft);
+  // TODO nft_reward_token inside
+  await blockchainConnector.rewardGameToken(user.getUserID(), nftMetadata);
+
   console.log(`07 > rewarded game token`);
   // - kick player from tcp connection <GAME>
   user.setGodotPeer(null);
+  user.setTurn(0);
   currentPlayer = -1;
   // - line.peek
   setState(GAME_STATE.READY);
@@ -219,8 +221,8 @@ const rewardPoints = async (user, points) => {
 };
 
 const rewardGameToken = async (user, rewardId) => {
-  const ipnft = await nftManager.allocateRewardToken(rewardId);
-  await user.awardGameToken(rewardId, ipnft);
+  const metadata = await nftManager.allocateRewardToken(rewardId);
+  await user.awardGameToken(rewardId, metadata);
 };
 
 const registerServer = (sessionID) => {

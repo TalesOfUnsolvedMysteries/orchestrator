@@ -93,19 +93,19 @@ const handleCommands = () => {
         log.info(`[NS] admin request OBS connector reconnection`);
         await obsConnector.connect(true);
         checkServerStatus();
-      break;
+        break;
       case 'OBS start':
         log.info(`[NS] admin request OBS connector to start recording`);
         await obsConnector.startRecording('aaa');
-      break;
+        break;
       case 'OBS stop':
         log.info(`[NS] admin request OBS connector to stop recording`);
         await obsConnector.stopRecording();
-      break;
+        break;
       case 'status':
         log.info(`[NS] admin request for status`);
         checkServerStatus();
-      break;
+        break;
       case 'start':
         log.info(`[NS] admin request to start serving clients`);
         servingClients = true;
@@ -114,7 +114,11 @@ const handleCommands = () => {
       case 'pause':
         log.info(`[NS] admin request to pause serving clients`);
         servingClients = false;
-      break;
+        break;
+      case 'init contract':
+        log.info(`[NS] admin request to initialize contract metadata`);
+        await blockchainConnector.initContract();
+        break
       case 'exit':
         log.info(`[NS] admin request for exit.\n\n\n`);
         process.exit(0);
