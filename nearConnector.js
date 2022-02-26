@@ -106,8 +106,8 @@ const initContract = async () => {
   await _contract.init({
     args: {
       metadata: {
-        spec: 'toum-0.0.0',
-        name: 'Unsolved Mysteries',
+        spec: 'toum-0.1.0',
+        name: 'Unsolved Mysteries - testnet',
         symbol: 'ToUM',
         icon: 'https://js13kgames.com/games/spaceship-wars-13k/__small.jpg',
         base_uri: '',
