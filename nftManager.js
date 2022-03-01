@@ -80,7 +80,6 @@ const allocateRewardToken = async (rewardId) => {
   const reward = rewards[rewardId];
   reward.image = new File([await fs.promises.readFile(reward.image.file)], reward.name, {type: 'image/png'});
   const metadata = await client.store(reward);
-  const metadataObj = metadata.embed();
   return getComplementaryMetadata(metadata);
 };
 
